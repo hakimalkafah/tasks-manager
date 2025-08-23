@@ -34,18 +34,47 @@ export function OrganizationMembers() {
   const handleRoleChange = async (membershipId: Id<"organizationMemberships">, newRole: "admin" | "member", targetUserId?: string) => {
     try {
       if (!organization) return;
-      // 1) Update role in Clerk organization for the target user
       setChangingIds((s) => ({ ...s, [String(membershipId)]: true }));
+      
       const clerkRole = newRole === "admin" ? "org:admin" : "org:member";
-      await fetch('/api/organizations/update-role', {
+      
+      // 1) Update role in Clerk organization for the target user
+      const clerkResponse = await fetch('/api/organizations/update-role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clerkOrgId: organization.id, targetUserId, role: clerkRole }),
       });
+      
+      if (!clerkResponse.ok) {
+        const errorData = await clerkResponse.json();
+        throw new Error(`Clerk update failed: ${errorData.error || 'Unknown error'}`);
+      }
+      
       // 2) Update Convex membership to keep local DB in sync
-      await updateMemberRole({ membershipId, role: newRole });
+      try {
+        await updateMemberRole({ membershipId, role: newRole });
+      } catch (convexErr) {
+        console.warn('Convex updateMemberRole failed, attempting sync fallback...', convexErr);
+        // Fall through to sync-roles below
+      }
+
+      // 3) Trigger a role sync to ensure consistency regardless of mutation result
+      if (targetUserId) {
+        try {
+          await fetch('/api/organizations/sync-roles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clerkOrgId: organization.id, userId: targetUserId, role: newRole }),
+          });
+        } catch (syncError) {
+          console.warn("Role sync warning:", syncError);
+          // Don't fail the operation if sync fails
+        }
+      }
+      
     } catch (error) {
       console.error("Error updating member role:", error);
+      alert(`Failed to update member role: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setChangingIds((s) => ({ ...s, [String(membershipId)]: false }));
     }

@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as events from "../events.js";
 import type * as organizations from "../organizations.js";
+import type * as roleSync from "../roleSync.js";
 import type * as tasks from "../tasks.js";
 import type * as users from "../users.js";
 
@@ -29,6 +30,7 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   events: typeof events;
   organizations: typeof organizations;
+  roleSync: typeof roleSync;
   tasks: typeof tasks;
   users: typeof users;
 }>;

@@ -1,10 +1,35 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 const isOrgRoute = createRouteMatcher(['/organization/:path*']);
 const isProjectRoute = createRouteMatcher(['/project/:path*']);
+const isProfileApiRoute = (req: Request) => {
+  const url = new URL(req.url);
+  return url.pathname.startsWith('/api/profile/');
+};
 
 export default clerkMiddleware(async (auth, req) => {
+  // Allow profile API routes to be accessed by authenticated users
+  if (isProfileApiRoute(req)) {
+    try {
+      // This will throw if the user is not authenticated
+      const { userId } = await auth();
+      if (!userId) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Unauthorized' }), 
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return NextResponse.next();
+    } catch (error) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Authentication required' }), 
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
   // For Project routes, require sign-in only. Do not enforce active org role here.
   if (isProjectRoute(req)) {
     await auth.protect();
@@ -14,7 +39,7 @@ export default clerkMiddleware(async (auth, req) => {
   // For Organization routes, enforce org role-based access control
   if (isOrgRoute(req)) {
     // 1) Require a signed-in user
-    await auth.protect(); // redirects unauthenticated users to sign-in. :contentReference[oaicite:1]{index=1}
+    await auth.protect();
 
     // 2) Check org role yourself (supports multiple roles)
     const { orgRole, redirectToSignIn } = await auth();
@@ -25,15 +50,16 @@ export default clerkMiddleware(async (auth, req) => {
 
     const allowed = new Set(['org:admin', 'org:member', 'org:owner']);
     if (!allowed.has(orgRole)) {
-      // Return 404 for unauthorized org roles (Clerk uses 404 for unauthorized by default)
       return new Response(null, { status: 404 });
-      // Or: return Response.redirect(new URL('/403', req.url));
     }
   }
+
+  return NextResponse.next();
 });
 
 export const config = {
   matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|api/auth).*)',
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api|trpc)(.*)',
   ],

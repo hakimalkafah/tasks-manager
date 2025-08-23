@@ -10,27 +10,45 @@ export const createOrUpdateUser = mutation({
     email: v.string(),
   },
   handler: async (ctx, args) => {
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
-      .first();
-
-    if (existingUser) {
-      return await ctx.db.patch(existingUser._id, {
-        firstName: args.firstName,
-        lastName: args.lastName,
-        email: args.email,
-        updatedAt: Date.now(),
-      });
-    } else {
-      return await ctx.db.insert("users", {
+    try {
+      console.log('createOrUpdateUser called with:', { 
         clerkUserId: args.clerkUserId,
         firstName: args.firstName,
         lastName: args.lastName,
-        email: args.email,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        email: args.email
       });
+
+      const existingUser = await ctx.db
+        .query("users")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", args.clerkUserId))
+        .first();
+
+      if (existingUser) {
+        console.log('Updating existing user:', existingUser._id);
+        const result = await ctx.db.patch(existingUser._id, {
+          firstName: args.firstName,
+          lastName: args.lastName,
+          email: args.email,
+          updatedAt: Date.now(),
+        });
+        console.log('User updated successfully:', result);
+        return result;
+      } else {
+        console.log('Creating new user');
+        const result = await ctx.db.insert("users", {
+          clerkUserId: args.clerkUserId,
+          firstName: args.firstName,
+          lastName: args.lastName,
+          email: args.email,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        console.log('User created successfully:', result);
+        return result;
+      }
+    } catch (error) {
+      console.error('Error in createOrUpdateUser:', error);
+      throw error;
     }
   },
 });

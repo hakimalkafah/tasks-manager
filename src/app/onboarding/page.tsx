@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,10 +11,12 @@ import { useState } from 'react';
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const submittingRef = React.useRef(false);
 
   if (!isLoaded) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -26,13 +28,26 @@ export default function OnboardingPage() {
   }
 
   // If user already has first and last name, redirect to home
-  if (user.firstName && user.lastName) {
-    router.push('/');
+  React.useEffect(() => {
+    if (user?.firstName && user?.lastName) {
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [user?.firstName, user?.lastName, router]);
+  
+  // Don't render anything if user is already onboarded
+  if (user?.firstName && user?.lastName) {
     return null;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || isUpdating) {
+      console.log('Submit ignored: already submitting');
+      return;
+    }
     
     if (!firstName.trim() || !lastName.trim()) {
       alert('Please enter both first and last name');
@@ -40,36 +55,97 @@ export default function OnboardingPage() {
     }
 
     setIsUpdating(true);
+    submittingRef.current = true;
     
     try {
-      const res = await fetch('/api/profile/update-name', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || `Request failed (${res.status})`);
+      // Get the session token using Clerk's getToken with a fresh token
+      let token = await getToken({ template: 'convex', skipCache: true });
+      if (!token) {
+        const retryToken = await getToken({ template: 'convex' });
+        token = retryToken || '';
+      }
+      console.log('Got token:', token ? 'token exists' : 'no token');
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Update name in Clerk and sync with Convex in a single call
+      console.log('Sending request to update profile...');
+      const requestBody = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: user?.primaryEmailAddress?.emailAddress
+      };
+      console.log('Request body:', requestBody);
+      
+      const startTime = Date.now();
+      let response;
+      try {
+        response = await fetch('/api/profile/update-name', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(requestBody),
+        });
+        console.log(`Request completed in ${Date.now() - startTime}ms`);
+        console.log('Response status:', response.status);
+      } catch (error) {
+        console.error('Request failed:', error);
+        throw new Error(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
-      // Store user data in Convex for consistent access
-      await fetch('/api/profile/sync-to-convex', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      let responseData;
+      try {
+        responseData = await response.json().catch(() => ({}));
+      } catch (error) {
+        console.error('Failed to parse response as JSON');
+        responseData = { error: 'Invalid response from server' };
+      }
 
-      // Reload the Clerk user to get fresh profile values before redirect
-      try { await user.reload(); } catch {}
-      router.push('/');
+      if (!response.ok) {
+        console.error('Update failed with status:', response.status);
+        console.error('Error details:', responseData);
+        throw new Error(responseData?.error || `Request failed (${response.status})`);
+      }
+      
+      console.log('Update successful:', responseData);
+
+      // Trigger a reload of the user data and ensure redirect
+      try {
+        await user.reload();
+      } catch (error) {
+        console.warn('Could not reload user session:', error);
+      }
+
+      // Mark as just onboarded to avoid redirect loop on home
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('justOnboarded', '1');
+        }
+      } catch {}
+
+      // Force redirect regardless to avoid being stuck on onboarding
+      setTimeout(() => {
+        router.push('/?justOnboarded=1');
+      }, 200);
+
+      // Safety: if for any reason we didn't navigate off the page quickly,
+      // re-enable the form so the UI isn't frozen
+      setTimeout(() => {
+        submittingRef.current = false;
+        setIsUpdating(false);
+      }, 2000);
     } catch (error) {
       console.error('Error updating user profile:', error);
-      alert('Failed to update profile. Please try again.');
-    } finally {
+      alert(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
+      // Only clear submitting flags on error
+      submittingRef.current = false;
       setIsUpdating(false);
+    } finally {
+      // On success, keep flags true to avoid duplicate submits while redirecting
     }
   };
 

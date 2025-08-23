@@ -25,9 +25,13 @@ vi.mock('@clerk/nextjs', async () => {
   };
 });
 
-// Mock Convex hooks used in the app
-vi.mock('convex/react', () => {
+// Mock Convex hooks used in the app (extend actual to preserve exports)
+vi.mock('convex/react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
   return {
+    ...actual,
+    useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+    // Prevent ConvexProvider requirement in unit/component tests
     useQuery: () => undefined,
     useMutation: () => vi.fn(),
   };

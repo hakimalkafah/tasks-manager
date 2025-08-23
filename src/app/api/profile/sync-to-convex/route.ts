@@ -1,41 +1,41 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { ConvexHttpClient } from "convex/browser";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { fetchMutation } from "convex/nextjs";
 import { api } from "../../../../../convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const { userId } = await auth();
+    const { userId } = auth();
     if (!userId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const clerk = await clerkClient();
-    const user = await clerk.users.getUser(userId);
+    const user = await currentUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+    }
 
-    if (!user.firstName || !user.lastName) {
+    const firstName = user.firstName ?? "";
+    const lastName = user.lastName ?? "";
+    if (!firstName || !lastName) {
       return new Response(JSON.stringify({ error: "User missing required name fields" }), { status: 400 });
     }
 
-    const primaryEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId);
-    if (!primaryEmail) {
-      return new Response(JSON.stringify({ error: "User missing email" }), { status: 400 });
+    const emailAddress = user.emailAddresses?.[0]?.emailAddress;
+    if (!emailAddress) {
+      return new Response(JSON.stringify({ error: "Email address required" }), { status: 400 });
     }
 
-    await convex.mutation(api.users.createOrUpdateUser, {
+    await fetchMutation(api.users.createOrUpdateUser, {
       clerkUserId: userId,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: primaryEmail.emailAddress,
+      firstName,
+      lastName,
+      email: emailAddress,
     });
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
-  } catch (err: any) {
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Internal server error";
     console.error("sync-to-convex route error", err);
-    return new Response(
-      JSON.stringify({ error: err?.message || "Failed to sync user to Convex" }),
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 }

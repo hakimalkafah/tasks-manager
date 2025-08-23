@@ -2,12 +2,13 @@
 
 import React from 'react';
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useOrganization, useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Settings, Plus, Building2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Users, Settings, Plus, Building2, Crown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
  
@@ -15,13 +16,30 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const { organization, isLoaded: orgLoaded } = useOrganization();
   const { user, isLoaded: userLoaded } = useUser();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
 
   // Redirect to onboarding if user doesn't have first/last name
   React.useEffect(() => {
-    if (userLoaded && user && (!user.firstName || !user.lastName)) {
+    if (!userLoaded) return;
+    if (!user) return;
+    const win = typeof window !== 'undefined' ? window : undefined;
+    const sp = win ? new URLSearchParams(win.location.search) : undefined;
+    const justOnboarded = (sp?.get('justOnboarded') === '1') || (win?.sessionStorage.getItem('justOnboarded') === '1');
+
+    if (!user.firstName || !user.lastName) {
+      // Avoid immediate loop right after onboarding
+      if (justOnboarded) {
+        // Clean up flag and strip query param
+        try { win?.sessionStorage.removeItem('justOnboarded'); } catch {}
+        // Replace URL without query if present
+        if (sp && sp.has('justOnboarded')) {
+          router.replace('/');
+        }
+        return;
+      }
       router.push('/onboarding');
-    } else if (userLoaded && user && user.firstName && user.lastName) {
+    } else {
       // Sync user data to Convex when they have complete profile
       fetch('/api/profile/sync-to-convex', {
         method: 'POST',
@@ -30,35 +48,40 @@ export default function Home() {
     }
   }, [user, userLoaded, router]);
 
+  const canQueryUserOrgs = userLoaded && !!user?.id && isAuthenticated;
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  
+  // Force refresh user organizations when organization changes
+  React.useEffect(() => {
+    if (organization) {
+      setRefreshKey(prev => prev + 1);
+    }
+  }, [organization?.id]);
+
+  // Add polling to refresh organizations periodically
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(() => {
+      setRefreshKey(prev => prev + 1);
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
   const userOrganizations = useQuery(
     api.organizations.getUserOrganizations,
-    user && user.id ? { userId: user.id } : "skip"
-  );
-
-  // Use the authenticated user's actual ID from Clerk
-  const actualUserOrganizations = useQuery(
-    api.organizations.getUserOrganizations,
-    user && user.id ? { userId: user.id } : "skip"
+    canQueryUserOrgs ? { userId: user.id } : "skip"
   );
 
   // Debug logging
   React.useEffect(() => {
-    console.log("Debug - user:", user?.id);
-    console.log("Debug - user object:", user);
-    console.log("Debug - userLoaded:", userLoaded);
-    console.log("Debug - query condition (user && user.id):", user && user.id);
-    console.log("Debug - userOrganizations:", userOrganizations);
-    console.log("Debug - actualUserOrganizations:", actualUserOrganizations);
-    console.log("Debug - userOrganizations type:", typeof userOrganizations);
-    console.log("Debug - userOrganizations === undefined:", userOrganizations === undefined);
-    console.log("Debug - userOrganizations === null:", userOrganizations === null);
-    if (userOrganizations) {
-      console.log("Debug - userOrganizations.length:", userOrganizations.length);
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Debug - user:", user?.id);
+      console.log("Debug - organization:", organization?.id);
+      console.log("Debug - userOrganizations:", userOrganizations);
     }
-    if (actualUserOrganizations) {
-      console.log("Debug - actualUserOrganizations.length:", actualUserOrganizations.length);
-    }
-  }, [user, userLoaded, userOrganizations, actualUserOrganizations]);
+  }, [user?.id, organization?.id, userOrganizations]);
 
   // Check if organization exists in Convex before redirecting
   const convexOrg = useQuery(
@@ -152,50 +175,71 @@ export default function Home() {
               
             </div>
 
-            {(userOrganizations && Array.isArray(userOrganizations) && userOrganizations.length > 0) || 
-             (actualUserOrganizations && Array.isArray(actualUserOrganizations) && actualUserOrganizations.length > 0) ? (
+            {(userOrganizations && Array.isArray(userOrganizations) && userOrganizations.length > 0) ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold">Your Projects</h3>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(userOrganizations || actualUserOrganizations || []).map((org) => (
-                    <Card key={org?._id} className="hover:shadow-md transition-shadow cursor-pointer">
-                      <Link href={`/organization/${org?.slug}`}>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            {org?.imageUrl ? (
-                              <img src={org.imageUrl} alt={org.name} className="w-8 h-8 rounded" />
-                            ) : (
-                              <Building2 className="h-8 w-8 text-blue-500" />
-                            )}
-                            {org?.name}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span className="capitalize">{org?.role}</span>
-                            <span>
-                              Joined {new Date(org?.joinedAt || 0).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Link>
-                    </Card>
-                  ))}
+                  {(userOrganizations || [])
+                    .filter(org => org) // Filter out any null/undefined orgs
+                    .sort((a, b) => {
+                      // Sort by role (admin first) and then by name
+                      if (a.role === b.role) {
+                        return a.name.localeCompare(b.name);
+                      }
+                      return a.role === 'admin' ? -1 : 1;
+                    })
+                    .map((org) => (
+                      <Card key={org._id} className="hover:shadow-md transition-shadow cursor-pointer group">
+                        <Link href={`/organization/${org.slug}`} className="block h-full">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              {org.imageUrl ? (
+                                <img 
+                                  src={org.imageUrl} 
+                                  alt={org.name} 
+                                  className="w-8 h-8 rounded" 
+                                  onError={(e) => {
+                                    // Fallback to icon if image fails to load
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <Building2 className={`h-8 w-8 ${org.imageUrl ? 'hidden' : ''} ${org.role === 'admin' ? 'text-yellow-500' : 'text-blue-500'}`} />
+                              <span className="truncate">{org.name}</span>
+                              {org.role === 'admin' && (
+                                <Crown className="h-4 w-4 text-yellow-500" />
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                              <Badge variant={org.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                {org.role}
+                              </Badge>
+                              <span className="text-xs">
+                                Joined {new Date(org.joinedAt || org.createdAt || 0).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Link>
+                      </Card>
+                    ))}
                 </div>
               </div>
             ) : (
               <Card className="max-w-md mx-auto">
                 <CardHeader>
                   <CardTitle className="text-center">
-                    {userOrganizations === undefined ? "Loading Projects..." : "No Projects Yet"}
+                    {userOrganizations === undefined || authLoading || !isAuthenticated ? "Loading Projects..." : "No Projects Yet"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
                   <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  {userOrganizations === undefined ? (
+                  {userOrganizations === undefined || authLoading || !isAuthenticated ? (
                     <p className="text-muted-foreground mb-6">
                       Loading your projects...
                     </p>
@@ -208,8 +252,7 @@ export default function Home() {
                     </>
                   )}
                   <div className="mt-4 text-xs text-gray-500">
-                    Debug: userOrganizations = {JSON.stringify(userOrganizations)}<br/>
-                    Debug: actualUserOrganizations = {JSON.stringify(actualUserOrganizations)}
+                    Debug: userOrganizations = {JSON.stringify(userOrganizations)}
                   </div>
                 </CardContent>
               </Card>

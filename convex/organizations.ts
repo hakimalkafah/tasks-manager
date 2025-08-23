@@ -92,6 +92,42 @@ export const getUserOrganizations = query({
     console.log("Auth identity:", identity?.subject, "Requested userId:", args.userId);
     if (!identity || identity.subject !== args.userId) throw new Error("Forbidden");
 
+    // Helper to map Clerk org roles to Convex roles
+    const mapClerkRoleToConvex = (role: string | undefined): "admin" | "member" | undefined => {
+      if (!role) return undefined;
+      const r = role.toLowerCase();
+      if (r.includes("owner") || r.includes("admin")) return "admin";
+      if (r.includes("member")) return "member";
+      return undefined;
+    };
+
+    // Extract org role for a given Clerk org id from identity claims if present
+    const deriveRoleFromIdentity = (clerkOrgId?: string): "admin" | "member" | undefined => {
+      if (!identity || !clerkOrgId) return undefined;
+
+      // Common Clerk claim shapes across versions
+      const claims: any = identity as any;
+      // Single active org
+      const singleOrgId = claims.org_id || claims.organization_id || claims.orgId || claims.organizationId;
+      const singleOrgRole = claims.org_role || claims.organization_role || claims.orgRole || claims.organizationRole;
+      if (singleOrgId === clerkOrgId) {
+        return mapClerkRoleToConvex(typeof singleOrgRole === "string" ? singleOrgRole : undefined);
+      }
+
+      // Multi-org claim shapes (array/object mapping)
+      const orgsArray = claims.orgs || claims.organizations || claims.organization_memberships;
+      if (Array.isArray(orgsArray)) {
+        const found = orgsArray.find((o: any) => (o?.id || o?.organization_id || o?.org_id) === clerkOrgId);
+        if (found) return mapClerkRoleToConvex(found.role || found.organization_role || found.org_role);
+      }
+      const orgsMap = claims.org_roles || claims.organization_roles;
+      if (orgsMap && typeof orgsMap === "object") {
+        const role = orgsMap[clerkOrgId];
+        if (role) return mapClerkRoleToConvex(role);
+      }
+      return undefined;
+    };
+
     // Get organizations where user has membership
     const memberships = await ctx.db
       .query("organizationMemberships")
@@ -101,9 +137,11 @@ export const getUserOrganizations = query({
     const membershipOrgs = await Promise.all(
       memberships.map(async (membership) => {
         const org = await ctx.db.get(membership.organizationId);
+        // Derive live role from Clerk identity when possible, else fallback to stored membership role
+        const liveRole = deriveRoleFromIdentity(org?.clerkOrgId);
         return {
           ...org,
-          role: membership.role,
+          role: liveRole ?? membership.role,
           joinedAt: membership.joinedAt,
         };
       })
