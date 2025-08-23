@@ -180,8 +180,8 @@ describe('TaskForm', () => {
       return (
         <form data-testid="task-form">
           <input placeholder="Task title" disabled={isLoading} />
-          <button 
-            type="submit" 
+          <button
+            type="button"
             disabled={isLoading}
             onClick={() => setIsLoading(true)}
           >
