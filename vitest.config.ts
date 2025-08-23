@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 export default defineConfig({
   plugins: [react()],
@@ -39,7 +42,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       // Map legacy import to convex-helpers testing utilities
-      'convex/testing': 'convex-helpers/testing',
+      'convex/testing': require.resolve('convex-helpers/testing'),
     },
   },
 });
