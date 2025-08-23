@@ -49,23 +49,27 @@ describe('E2E sync fallback: server-side Convex sync keeps roles consistent', ()
 
     // Mock Convex hooks
     const mockUpdateMemberRole = vi.fn().mockRejectedValue(new Error('Convex mutation failed'));
-    vi.doMock('convex/react', () => ({
-      useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
-      useQuery: (_fn: any, args?: any) => {
-        if (args === 'skip') return undefined;
-        if (args && typeof args === 'object' && 'clerkOrgId' in args) {
-          return { _id: 'conv_org_123', name: 'Test Organization' };
-        }
-        if (args && typeof args === 'object' && 'organizationId' in args) {
-          return members;
-        }
-        if (args && typeof args === 'object' && 'userId' in args) {
-          return userOrganizationsForMember;
-        }
-        return undefined;
-      },
-      useMutation: () => mockUpdateMemberRole,
-    }));
+    vi.doMock('convex/react', async (importOriginal) => {
+      const actual = await importOriginal<any>();
+      return {
+        ...actual,
+        useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+        useQuery: (_fn: any, args?: any) => {
+          if (args === 'skip') return undefined;
+          if (args && typeof args === 'object' && 'clerkOrgId' in args) {
+            return { _id: 'conv_org_123', name: 'Test Organization' };
+          }
+          if (args && typeof args === 'object' && 'organizationId' in args) {
+            return members;
+          }
+          if (args && typeof args === 'object' && 'userId' in args) {
+            return userOrganizationsForMember;
+          }
+          return undefined;
+        },
+        useMutation: () => mockUpdateMemberRole,
+      };
+    });
 
     // Mock fetch: when update-role is called, emulate server-side Convex sync by updating our shared state
     (global as any).fetch = vi.fn(async (url: string, init?: any) => {

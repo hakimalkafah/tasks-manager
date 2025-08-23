@@ -56,8 +56,11 @@ describe('Home page', () => {
       };
     });
 
-    vi.doMock('convex/react', () => {
+    vi.doMock('convex/react', async (importOriginal) => {
+      const actual = await importOriginal<any>();
       return {
+        ...actual,
+        useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
         // Decide by args shape instead of function name to keep this robust
         useQuery: (_fn: any, args?: any) => {
           if (args && typeof args === 'object' && 'userId' in args) {

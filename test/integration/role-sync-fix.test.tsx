@@ -15,10 +15,15 @@ vi.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseUser(),
 }));
 
-vi.mock('convex/react', () => ({
-  useQuery: vi.fn((query, args) => mockUseQuery(query, args)),
-  useMutation: vi.fn(() => mockUpdateMemberRole),
-}));
+vi.mock('convex/react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+    useQuery: vi.fn((query, args) => mockUseQuery(query, args)),
+    useMutation: vi.fn(() => mockUpdateMemberRole),
+  };
+});
 
 global.fetch = vi.fn();
 global.alert = vi.fn();

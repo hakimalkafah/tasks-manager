@@ -21,18 +21,23 @@ const mockUpdateTask = vi.fn();
 const mockDeleteTask = vi.fn();
 const mockGetTasks = vi.fn();
 
-vi.mock('convex/react', () => ({
-  useMutation: vi.fn((mutation) => {
-    if (mutation.toString().includes('createTask')) return mockCreateTask;
-    if (mutation.toString().includes('updateTask')) return mockUpdateTask;
-    if (mutation.toString().includes('deleteTask')) return mockDeleteTask;
-    return vi.fn();
-  }),
-  useQuery: vi.fn(() => [
-    { id: '1', title: 'Test Task', completed: false, priority: 'medium' },
-    { id: '2', title: 'Another Task', completed: true, priority: 'high' }
-  ]),
-}));
+vi.mock('convex/react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+    useMutation: vi.fn((mutation) => {
+      if (mutation.toString().includes('createTask')) return mockCreateTask;
+      if (mutation.toString().includes('updateTask')) return mockUpdateTask;
+      if (mutation.toString().includes('deleteTask')) return mockDeleteTask;
+      return vi.fn();
+    }),
+    useQuery: vi.fn(() => [
+      { id: '1', title: 'Test Task', completed: false, priority: 'medium' },
+      { id: '2', title: 'Another Task', completed: true, priority: 'high' }
+    ]),
+  };
+});
 
 // Integration test for complete task workflow
 describe('Task Workflow Integration', () => {
