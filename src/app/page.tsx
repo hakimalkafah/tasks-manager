@@ -46,7 +46,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
       }).catch(console.error);
     }
-  }, [user, userLoaded, router]);
+  }, [user?.firstName, user?.lastName, userLoaded, router]);
 
   const canQueryUserOrgs = userLoaded && !!user?.id && isAuthenticated;
   const [refreshKey, setRefreshKey] = React.useState(0);
