@@ -57,27 +57,30 @@ export default function OnboardingPage() {
     submittingRef.current = true;
 
     try {
-      // Update Clerk profile directly from the client
-      await user.update({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+      // Update name via API route which also syncs to Convex
+      const res = await fetch('/api/profile/update-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        }),
       });
+
+      if (!res.ok) {
+        let message = 'Failed to update profile';
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {}
+        throw new Error(message);
+      }
 
       // Ensure the user object reflects the latest data
       try {
         await user.reload();
       } catch (error) {
         console.warn('Could not reload user session:', error);
-      }
-
-      // Sync the updated profile to Convex
-      try {
-        await fetch('/api/profile/sync-to-convex', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        console.warn('Failed to sync profile to Convex:', error);
       }
 
       // Mark as just onboarded to avoid redirect loop on home
