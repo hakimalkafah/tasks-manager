@@ -2,23 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/organizations/update-role/route';
 
 // Define mocks in a hoisted context to avoid initialization order issues
-const { mockAuth, mockClient } = vi.hoisted(() => {
+const { mockAuth, fetchMock } = vi.hoisted(() => {
   return {
     mockAuth: vi.fn(),
-    mockClient: {
-      users: {
-        getOrganizationMembershipList: vi.fn(),
-      },
-      organizationMemberships: {
-        updateOrganizationMembership: vi.fn(),
-      },
-    },
+    fetchMock: vi.fn(),
   } as const;
 });
 
+// Stub global.fetch with our mock implementation
+vi.stubGlobal('fetch', (...args) => fetchMock(...args));
+
 vi.mock('@clerk/nextjs/server', () => ({
   auth: () => mockAuth(),
-  clerkClient: mockClient,
 }));
 
 // Mock NextResponse.json to return a plain object we can assert on
@@ -31,38 +26,37 @@ vi.mock('next/server', () => ({
 describe('Role Update API Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fetchMock.mockReset();
   });
 
   it('should successfully update member role from admin to member', async () => {
     // Mock authenticated user
     mockAuth.mockResolvedValue({ userId: 'admin_user_123' });
 
-    // Mock caller is admin in organization
-    mockClient.users.getOrganizationMembershipList.mockImplementation(({ userId }) => {
-      if (userId === 'admin_user_123') {
-        return Promise.resolve({
-          data: [{
-            organization: { id: 'org_123' },
-            role: 'org:admin'
-          }]
-        });
-      }
-      if (userId === 'target_user_456') {
-        return Promise.resolve({
-          data: [{
-            id: 'membership_456',
-            organization: { id: 'org_123' },
-            role: 'org:admin'
-          }]
-        });
-      }
-    });
-
-    // Mock successful role update
-    mockClient.organizationMemberships.updateOrganizationMembership.mockResolvedValue({
-      id: 'membership_456',
-      role: 'org:member'
-    });
+    // Mock Clerk API responses
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [{ organization: { id: 'org_123' }, role: 'org:admin' }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              id: 'membership_456',
+              organization: { id: 'org_123' },
+              role: 'org:admin',
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'membership_456', role: 'org:member' }),
+      });
 
     const request = new Request('http://localhost/api/organizations/update-role', {
       method: 'POST',
@@ -75,10 +69,12 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
-    expect(mockClient.organizationMemberships.updateOrganizationMembership).toHaveBeenCalledWith(
-      'membership_456',
-      { role: 'org:member' }
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.clerk.com/v1/organization_memberships/membership_456',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ role: 'org:member' }),
+      })
     );
     expect(response.data.ok).toBe(true);
   });
@@ -97,20 +93,19 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(response.data).toEqual({ error: "Unauthorized" });
     expect(response.options).toEqual({ status: 401 });
   });
 
   it('should reject non-admin caller', async () => {
     mockAuth.mockResolvedValue({ userId: 'member_user_123' });
-
     // Mock caller is only a member, not admin
-    mockClient.users.getOrganizationMembershipList.mockResolvedValue({
-      data: [{
-        organization: { id: 'org_123' },
-        role: 'org:member' // Not admin
-      }]
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [{ organization: { id: 'org_123' }, role: 'org:member' }],
+      }),
     });
 
     const request = new Request('http://localhost/api/organizations/update-role', {
@@ -124,7 +119,7 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response).toEqual({ data: { error: "Forbidden" }, options: { status: 403 } });
   });
 
@@ -142,7 +137,7 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(response).toEqual({ data: { error: "Invalid role" }, options: { status: 400 } });
   });
 
@@ -159,29 +154,24 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(response).toEqual({ data: { error: "Missing required fields" }, options: { status: 400 } });
   });
 
   it('should handle target user not in organization', async () => {
     mockAuth.mockResolvedValue({ userId: 'admin_user_123' });
-
-    // Mock caller is admin
-    mockClient.users.getOrganizationMembershipList.mockImplementation(({ userId }) => {
-      if (userId === 'admin_user_123') {
-        return Promise.resolve({
-          data: [{
-            organization: { id: 'org_123' },
-            role: 'org:admin'
-          }]
-        });
-      }
-      if (userId === 'target_user_456') {
-        return Promise.resolve({
-          data: [] // Target user not in organization
-        });
-      }
-    });
+    // Mock caller is admin and target user has no membership
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [{ organization: { id: 'org_123' }, role: 'org:admin' }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [] }),
+      });
 
     const request = new Request('http://localhost/api/organizations/update-role', {
       method: 'POST',
@@ -194,17 +184,14 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(response).toEqual({ data: { error: "Target user is not a member of this organization" }, options: { status: 404 } });
   });
 
   it('should handle Clerk API errors', async () => {
     mockAuth.mockResolvedValue({ userId: 'admin_user_123' });
-
     // Mock Clerk API error
-    mockClient.users.getOrganizationMembershipList.mockRejectedValue(
-      new Error('Clerk API Error')
-    );
+    fetchMock.mockRejectedValue(new Error('Clerk API Error'));
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -220,6 +207,7 @@ describe('Role Update API Tests', () => {
 
     const response = await POST(request);
 
+    expect(fetchMock).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith('update-role error', expect.any(Error));
     expect(response).toEqual({ data: { error: "Clerk API Error" }, options: { status: 500 } });
 
@@ -228,32 +216,30 @@ describe('Role Update API Tests', () => {
 
   it('should successfully promote member to admin', async () => {
     mockAuth.mockResolvedValue({ userId: 'admin_user_123' });
-
-    // Mock caller is admin
-    mockClient.users.getOrganizationMembershipList.mockImplementation(({ userId }) => {
-      if (userId === 'admin_user_123') {
-        return Promise.resolve({
-          data: [{
-            organization: { id: 'org_123' },
-            role: 'org:admin'
-          }]
-        });
-      }
-      if (userId === 'target_user_456') {
-        return Promise.resolve({
-          data: [{
-            id: 'membership_456',
-            organization: { id: 'org_123' },
-            role: 'org:member'
-          }]
-        });
-      }
-    });
-
-    mockClient.organizationMemberships.updateOrganizationMembership.mockResolvedValue({
-      id: 'membership_456',
-      role: 'org:admin'
-    });
+    // Mock Clerk API responses
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [{ organization: { id: 'org_123' }, role: 'org:admin' }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              id: 'membership_456',
+              organization: { id: 'org_123' },
+              role: 'org:member',
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'membership_456', role: 'org:admin' }),
+      });
 
     const request = new Request('http://localhost/api/organizations/update-role', {
       method: 'POST',
@@ -266,10 +252,12 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
-
-    expect(mockClient.organizationMemberships.updateOrganizationMembership).toHaveBeenCalledWith(
-      'membership_456',
-      { role: 'org:admin' }
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.clerk.com/v1/organization_memberships/membership_456',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ role: 'org:admin' }),
+      })
     );
     expect(response.data.ok).toBe(true);
   });
@@ -281,15 +269,27 @@ describe('Role Update API Tests', () => {
 
     // Auth as admin
     mockAuth.mockResolvedValue({ userId: 'admin_user_123' });
-    mockClient.users.getOrganizationMembershipList.mockImplementation(({ userId }) => {
-      if (userId === 'admin_user_123') {
-        return Promise.resolve({ data: [{ organization: { id: 'org_123' }, role: 'org:owner' }] });
-      }
-      if (userId === 'target_user_456') {
-        return Promise.resolve({ data: [{ id: 'membership_456', organization: { id: 'org_123' }, role: 'org:member' }] });
-      }
-    });
-    mockClient.organizationMemberships.updateOrganizationMembership.mockResolvedValue({ id: 'membership_456', role: 'org:owner' });
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [{ organization: { id: 'org_123' }, role: 'org:owner' }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              id: 'membership_456',
+              organization: { id: 'org_123' },
+              role: 'org:member',
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'membership_456', role: 'org:owner' }),
+      });
 
     // owner should map to admin for Convex
     const request = new Request('http://localhost/api/organizations/update-role', {
@@ -299,6 +299,10 @@ describe('Role Update API Tests', () => {
     });
 
     const response = await POST(request);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.clerk.com/v1/organization_memberships/membership_456',
+      expect.objectContaining({ method: 'PATCH' })
+    );
     expect(response.data.ok).toBe(true);
     expect(response.data.synced).toBe(true);
   });
