@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { useState } from 'react';
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const router = useRouter();
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
@@ -56,68 +55,29 @@ export default function OnboardingPage() {
 
     setIsUpdating(true);
     submittingRef.current = true;
-    
+
     try {
-      // Get the session token using Clerk's getToken with a fresh token
-      let token = await getToken({ template: 'convex', skipCache: true });
-      if (!token) {
-        const retryToken = await getToken({ template: 'convex' });
-        token = retryToken || '';
-      }
-      console.log('Got token:', token ? 'token exists' : 'no token');
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      // Update name in Clerk and sync with Convex in a single call
-      console.log('Sending request to update profile...');
-      const requestBody = {
+      // Update Clerk profile directly from the client
+      await user.update({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        email: user?.primaryEmailAddress?.emailAddress
-      };
-      console.log('Request body:', requestBody);
-      
-      const startTime = Date.now();
-      let response;
-      try {
-        response = await fetch('/api/profile/update-name', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(requestBody),
-        });
-        console.log(`Request completed in ${Date.now() - startTime}ms`);
-        console.log('Response status:', response.status);
-      } catch (error) {
-        console.error('Request failed:', error);
-        throw new Error(`Network error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+      });
 
-      let responseData;
-      try {
-        responseData = await response.json().catch(() => ({}));
-      } catch (error) {
-        console.error('Failed to parse response as JSON');
-        responseData = { error: 'Invalid response from server' };
-      }
-
-      if (!response.ok) {
-        console.error('Update failed with status:', response.status);
-        console.error('Error details:', responseData);
-        throw new Error(responseData?.error || `Request failed (${response.status})`);
-      }
-      
-      console.log('Update successful:', responseData);
-
-      // Trigger a reload of the user data and ensure redirect
+      // Ensure the user object reflects the latest data
       try {
         await user.reload();
       } catch (error) {
         console.warn('Could not reload user session:', error);
+      }
+
+      // Sync the updated profile to Convex
+      try {
+        await fetch('/api/profile/sync-to-convex', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.warn('Failed to sync profile to Convex:', error);
       }
 
       // Mark as just onboarded to avoid redirect loop on home
