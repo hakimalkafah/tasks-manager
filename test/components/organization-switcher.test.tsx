@@ -12,10 +12,15 @@ vi.mock('@clerk/nextjs', () => ({
 }));
 
 // Mock Convex
-vi.mock('convex/react', () => ({
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
-}));
+vi.mock('convex/react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
+    useMutation: vi.fn(),
+    useQuery: vi.fn(),
+  };
+});
 
 // Comprehensive OrganizationSwitcher tests
 describe('OrganizationSwitcher', () => {

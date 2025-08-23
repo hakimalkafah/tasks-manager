@@ -17,8 +17,8 @@ vi.mock('@clerk/nextjs', () => ({
   UserButton: () => <div />,
 }));
 
-vi.mock('convex/react', async () => {
-  const actual = await vi.importActual<any>('convex/react');
+vi.mock('convex/react', async (importOriginal) => {
+  const actual = await importOriginal<any>();
   return {
     ...actual,
     useConvexAuth: () => mockUseConvexAuth(),

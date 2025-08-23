@@ -34,8 +34,11 @@ describe('Home project tiles show updated role', () => {
       { _id: 'org1', name: 'Acme', slug: 'acme', imageUrl: '', role: 'member', joinedAt: Date.now() },
     ];
 
-    vi.doMock('convex/react', () => {
+    vi.doMock('convex/react', async (importOriginal) => {
+      const actual = await importOriginal<any>();
       return {
+        ...actual,
+        useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
         useQuery: (_fn: any, args?: any) => {
           if (args && typeof args === 'object' && 'userId' in args) {
             // getUserOrganizations
@@ -75,8 +78,11 @@ describe('Home project tiles show updated role', () => {
       { _id: 'org1', name: 'Acme', slug: 'acme', imageUrl: '', role: 'org:member', joinedAt: Date.now() },
     ];
 
-    vi.doMock('convex/react', () => {
+    vi.doMock('convex/react', async (importOriginal) => {
+      const actual = await importOriginal<any>();
       return {
+        ...actual,
+        useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
         useQuery: (_fn: any, args?: any) => {
           if (args && typeof args === 'object' && 'userId' in args) return orgs;
           return undefined;

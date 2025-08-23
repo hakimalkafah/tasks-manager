@@ -59,8 +59,10 @@ describe('E2E: Role promotion updates Home project tile role', () => {
       return undefined;
     });
 
-    vi.doMock('convex/react', () => {
+    vi.doMock('convex/react', async (importOriginal) => {
+      const actual = await importOriginal<any>();
       return {
+        ...actual,
         useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
         useQuery: (_fn: any, args?: any) => {
           if (args === 'skip') return undefined;
