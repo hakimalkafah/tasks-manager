@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { useState } from 'react';
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
   const router = useRouter();
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
@@ -56,20 +55,8 @@ export default function OnboardingPage() {
 
     setIsUpdating(true);
     submittingRef.current = true;
-    
+
     try {
-      // Get the session token using Clerk's getToken with a fresh token
-      let token = await getToken({ template: 'convex', skipCache: true });
-      if (!token) {
-        const retryToken = await getToken({ template: 'convex' });
-        token = retryToken || '';
-      }
-      console.log('Got token:', token ? 'token exists' : 'no token');
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
       // Update name in Clerk and sync with Convex in a single call
       console.log('Sending request to update profile...');
       const requestBody = {
@@ -78,16 +65,16 @@ export default function OnboardingPage() {
         email: user?.primaryEmailAddress?.emailAddress
       };
       console.log('Request body:', requestBody);
-      
+
       const startTime = Date.now();
       let response;
       try {
         response = await fetch('/api/profile/update-name', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+          headers: {
+            'Content-Type': 'application/json'
           },
+          credentials: 'include',
           body: JSON.stringify(requestBody),
         });
         console.log(`Request completed in ${Date.now() - startTime}ms`);
