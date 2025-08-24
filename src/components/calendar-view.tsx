@@ -95,6 +95,38 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     }));
   }, [events]);
 
+  // Compute scheduling conflicts (overlaps) across ALL events (any assignee)
+  const conflicts = useMemo(() => {
+    if (!events) return [] as Array<{ a: CalendarEvent; b: CalendarEvent }>;
+
+    const list = [...(events as CalendarEvent[])].sort((x, y) => x.startTime - y.startTime);
+    const active: CalendarEvent[] = [];
+    const pairs: Array<{ a: CalendarEvent; b: CalendarEvent }> = [];
+
+    for (const curr of list) {
+      // remove non-overlapping from active
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].endTime <= curr.startTime) active.splice(i, 1);
+      }
+      // any remaining active overlaps with curr
+      for (const prev of active) {
+        if (curr.startTime < prev.endTime) {
+          pairs.push({ a: prev, b: curr });
+        }
+      }
+      active.push(curr);
+    }
+
+    // Deduplicate unordered pairs
+    const seen = new Set<string>();
+    return pairs.filter(({ a, b }) => {
+      const key = [a._id, b._id].sort().join(":");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [events]);
+
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newEvent.title.trim()) return;
@@ -233,6 +265,48 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
   return (
     <div className="space-y-6">
+      {/* Conflicts Summary Tile */}
+      <Card className={conflicts.length ? "border-red-300" : undefined}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>Scheduling Conflicts</span>
+            <Badge className={conflicts.length ? "bg-red-600" : "bg-green-600"}>
+              {conflicts.length ? `${conflicts.length}` : "0"}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {conflicts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No conflicts detected.</p>
+          ) : (
+            <div className="space-y-3">
+              {conflicts.slice(0, 5).map((c, idx) => {
+                const aName = getAssignedUserName(c.a.assignedTo);
+                const bName = getAssignedUserName(c.b.assignedTo);
+                return (
+                  <div key={idx} className="text-sm p-3 rounded-md border bg-white">
+                    <div className="font-medium">{aName} ↔ {bName}</div>
+                    <div className="mt-1 text-muted-foreground">
+                      <div>
+                        {moment(c.a.startTime).format('MMM DD, HH:mm')} - {moment(c.a.endTime).format('HH:mm')}: {c.a.title}
+                      </div>
+                      <div>
+                        {moment(c.b.startTime).format('MMM DD, HH:mm')} - {moment(c.b.endTime).format('HH:mm')}: {c.b.title}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {conflicts.length > 5 && (
+                <div className="text-xs text-muted-foreground">
+                  +{conflicts.length - 5} more conflict{conflicts.length - 5 === 1 ? "" : "s"}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <CalendarIcon className="h-8 w-8 text-blue-500" />

@@ -5,6 +5,12 @@ const isOrgRoute = createRouteMatcher(['/organization/:path*']);
 const isProjectRoute = createRouteMatcher(['/project/:path*']);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Allow Clerk webhooks to pass through without auth or rewrites
+  const pathname = req.nextUrl.pathname;
+  if (pathname.startsWith('/api/webhooks/clerk')) {
+    return; // do nothing, skip middleware for webhook route
+  }
+
   // For Project routes, require sign-in only. Do not enforce active org role here.
   if (isProjectRoute(req)) {
     await auth.protect();
