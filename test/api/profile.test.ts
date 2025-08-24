@@ -4,15 +4,23 @@ import { POST as UpdateNamePOST } from '../../src/app/api/profile/update-name/ro
 import { NextRequest } from 'next/server';
 
 // Hoisted mocks to avoid initialization order issues
-const { mockAuth, mockCurrentUser, mockMutation } = vi.hoisted(() => ({
+const { mockAuth, mockCurrentUser, mockMutation, mockUpdateUser } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockCurrentUser: vi.fn(),
   mockMutation: vi.fn(),
+  mockUpdateUser: vi.fn(),
 }));
 
 vi.mock('@clerk/nextjs', () => ({
   auth: () => mockAuth(),
   currentUser: () => mockCurrentUser(),
+}));
+
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: () => mockAuth(),
+  clerkClient: {
+    users: { updateUser: (...args: unknown[]) => mockUpdateUser(...args) },
+  },
 }));
 
 vi.mock('convex/nextjs', () => ({
@@ -25,6 +33,7 @@ describe('Profile API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAuth.mockReturnValue({ userId: 'user123' });
+    mockUpdateUser.mockResolvedValue({});
   });
 
   describe('POST /api/profile/sync-to-convex', () => {
@@ -145,6 +154,10 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
+      expect(mockUpdateUser).toHaveBeenCalledWith('user123', {
+        firstName: 'Jane',
+        lastName: 'Smith',
+      });
       expect(mockMutation).toHaveBeenCalledWith(
         expect.any(Object),
         {
@@ -249,7 +262,28 @@ describe('Profile API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(500);
-      expect(data.error).toBe('Internal server error');
+      expect(data.error).toBe('Failed to update user profile');
+    });
+
+    it('should return 500 if Clerk update fails', async () => {
+      mockUpdateUser.mockRejectedValue(new Error('Clerk failure'));
+
+      const request = new NextRequest('http://localhost:3000/api/profile/update-name', {
+        method: 'POST',
+        body: JSON.stringify({
+          firstName: 'Jane',
+          lastName: 'Smith',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const response = await UpdateNamePOST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data.error).toBe('Failed to update user profile');
     });
   });
 });

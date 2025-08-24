@@ -82,15 +82,27 @@ export async function POST(req: Request) {
       // Update Clerk user profile first so client `useUser()` reflects changes
       try {
         if (!clerkClient || !clerkClient.users) {
-          console.warn('[update-name] clerkClient not available; skipping Clerk profile update');
-        } else {
-          await clerkClient.users.updateUser(userId, {
-            firstName,
-            lastName,
-          });
+          throw new Error('Clerk client not available');
         }
+        await clerkClient.users.updateUser(userId, {
+          firstName,
+          lastName,
+        });
       } catch (clerkErr) {
-        console.warn('[update-name] Clerk update failed, proceeding to Convex sync', clerkErr);
+        console.error('[update-name] Clerk update failed', clerkErr);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to update user profile',
+            details: clerkErr instanceof Error ? clerkErr.message : 'Unknown error'
+          }),
+          {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, max-age=0'
+            }
+          }
+        );
       }
 
       // Then sync to Convex
