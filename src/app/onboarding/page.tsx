@@ -15,6 +15,7 @@ export default function OnboardingPage() {
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const submittingRef = React.useRef(false);
 
   if (!isLoaded) {
@@ -55,6 +56,7 @@ export default function OnboardingPage() {
 
     setIsUpdating(true);
     submittingRef.current = true;
+    setErrorMessage(null);
 
     try {
       // Update name via API route which also syncs to Convex
@@ -70,8 +72,14 @@ export default function OnboardingPage() {
       if (!res.ok) {
         const data = await res
           .json()
-          .catch(() => ({ error: 'Failed to update profile' }));
-        throw new Error(data.error || 'Failed to update profile');
+          .catch(() => ({ error: 'Failed to update profile', details: null }));
+        const message = data.error || 'Failed to update profile';
+        console.error('Error details:', data.details);
+        alert(message);
+        setErrorMessage(message);
+        submittingRef.current = false;
+        setIsUpdating(false);
+        return;
       }
 
       // Ensure the user object reflects the latest data
@@ -101,7 +109,12 @@ export default function OnboardingPage() {
       }, 2000);
     } catch (error) {
       console.error('Error updating user profile:', error);
-      alert(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update profile. Please try again.';
+      alert(message);
+      setErrorMessage(message);
       // Only clear submitting flags on error
       submittingRef.current = false;
       setIsUpdating(false);
@@ -120,6 +133,9 @@ export default function OnboardingPage() {
           </p>
         </CardHeader>
         <CardContent>
+          {errorMessage && (
+            <p className="text-red-500 text-center mb-4">{errorMessage}</p>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="firstName">First Name *</Label>
