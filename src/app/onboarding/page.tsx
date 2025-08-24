@@ -68,12 +68,10 @@ export default function OnboardingPage() {
       });
 
       if (!res.ok) {
-        let message = 'Failed to update profile';
-        try {
-          const data = await res.json();
-          message = data.error || message;
-        } catch {}
-        throw new Error(message);
+        const data = await res
+          .json()
+          .catch(() => ({ error: 'Failed to update profile' }));
+        throw new Error(data.error || 'Failed to update profile');
       }
 
       // Ensure the user object reflects the latest data

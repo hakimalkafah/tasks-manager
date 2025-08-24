@@ -81,6 +81,7 @@ NEXT_PUBLIC_CONVEX_URL=https://your_convex_deployment.convex.cloud
 
 1. Connect your repository to Vercel
 2. Add environment variables in Vercel dashboard
+   - **CLERK_SECRET_KEY** must be set to a valid key so server-side Clerk SDK calls (e.g. profile updates) work in production
 3. Deploy automatically on push to main branch
 
 ### Convex
