@@ -15,13 +15,13 @@ export async function POST(req: Request) {
     
     if (!userId) {
       return new Response(
-        JSON.stringify({ error: "You must be signed in to update your profile" }), 
-        { 
-          status: 401, 
-          headers: { 
+        JSON.stringify({ error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, max-age=0'
-          } 
+          }
         }
       );
     }
@@ -48,16 +48,16 @@ export async function POST(req: Request) {
     } catch (error) {
       console.error('Error parsing request body:', error);
       return new Response(
-        JSON.stringify({ 
-          error: "Invalid request body",
+        JSON.stringify({
+          error: "Invalid JSON",
           details: error instanceof Error ? error.message : 'Unknown error'
-        }), 
-        { 
-          status: 400, 
-          headers: { 
+        }),
+        {
+          status: 400,
+          headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, max-age=0'
-          } 
+          }
         }
       );
     }
