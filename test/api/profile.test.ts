@@ -188,6 +188,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe('Unauthorized');
+      expect(data.errorCode).toBe('UNAUTHORIZED');
     });
 
     it('should return 400 for missing required fields', async () => {
@@ -207,6 +208,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe('First name and last name are required');
+      expect(data.errorCode).toBe('VALIDATION_ERROR');
     });
 
     it('should handle empty strings as invalid', async () => {
@@ -226,6 +228,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe('First name and last name are required');
+      expect(data.errorCode).toBe('VALIDATION_ERROR');
     });
 
     it('should handle invalid JSON', async () => {
@@ -242,6 +245,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toContain('Invalid JSON');
+      expect(data.errorCode).toBe('INVALID_JSON');
     });
 
     it('should handle Convex errors', async () => {
@@ -263,6 +267,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to update user profile');
+      expect(data.errorCode).toBe('CONVEX_UPDATE_FAILED');
     });
 
     it('should return 500 if Clerk update fails', async () => {
@@ -284,6 +289,7 @@ describe('Profile API', () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe('Failed to update user profile');
+      expect(data.errorCode).toBe('CLERK_UPDATE_FAILED');
     });
   });
 });

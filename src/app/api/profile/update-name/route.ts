@@ -8,14 +8,17 @@ export const dynamic = 'force-dynamic';
 
 // This API route is protected by Clerk's auth middleware
 export async function POST(req: Request) {
+  let userId: string | null = null;
+  let body: { firstName?: string; lastName?: string; email?: string } | null = null;
   try {
     // Get the auth session
     const session = await auth();
-    const userId = session.userId;
+    userId = session.userId;
     
     if (!userId) {
+      console.error('[update-name] Unauthorized request', { userId, body: null });
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: "Unauthorized", errorCode: 'UNAUTHORIZED' }),
         {
           status: 401,
           headers: {
@@ -27,7 +30,6 @@ export async function POST(req: Request) {
     }
 
     // Parse and validate request body
-    let body: { firstName?: string; lastName?: string; email?: string };
     try {
       // Read the request body directly without cloning
       const contentType = req.headers.get('content-type');
@@ -46,10 +48,11 @@ export async function POST(req: Request) {
         throw new Error('Request body must be a JSON object');
       }
     } catch (error) {
-      console.error('Error parsing request body:', error);
+      console.error('[update-name] Error parsing request body', { userId }, error);
       return new Response(
         JSON.stringify({
           error: "Invalid JSON",
+          errorCode: 'INVALID_JSON',
           details: error instanceof Error ? error.message : 'Unknown error'
         }),
         {
@@ -66,14 +69,15 @@ export async function POST(req: Request) {
     const lastName = typeof body.lastName === 'string' ? body.lastName.trim() : '';
 
     if (!firstName || !lastName) {
+      console.error('[update-name] Missing required fields', { userId, body });
       return new Response(
-        JSON.stringify({ error: "First name and last name are required" }), 
-        { 
-          status: 400, 
-          headers: { 
+        JSON.stringify({ error: "First name and last name are required", errorCode: 'VALIDATION_ERROR' }),
+        {
+          status: 400,
+          headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, max-age=0'
-          } 
+          }
         }
       );
     }
@@ -89,10 +93,11 @@ export async function POST(req: Request) {
           lastName,
         });
       } catch (clerkErr) {
-        console.error('[update-name] Clerk update failed', clerkErr);
+        console.error('[update-name] Clerk update failed', { userId, body }, clerkErr);
         return new Response(
           JSON.stringify({
             error: 'Failed to update user profile',
+            errorCode: 'CLERK_UPDATE_FAILED',
             details: clerkErr instanceof Error ? clerkErr.message : 'Unknown error'
           }),
           {
@@ -127,28 +132,30 @@ export async function POST(req: Request) {
         }
       );
     } catch (error) {
-      console.error("Error updating user:", error);
+      console.error('[update-name] Convex mutation failed', { userId, body }, error);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "Failed to update user profile",
+          errorCode: 'CONVEX_UPDATE_FAILED',
           details: error instanceof Error ? error.message : 'Unknown error'
-        }), 
-        { 
-          status: 500, 
-          headers: { 
+        }),
+        {
+          status: 500,
+          headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, max-age=0'
-          } 
+          }
         }
       );
     }
   } catch (error) {
-    console.error("Unexpected error in update-name route:", error);
+    console.error('[update-name] Unexpected error', { userId, body }, error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "An unexpected error occurred",
+        errorCode: 'UNEXPECTED_ERROR',
         details: error instanceof Error ? error.message : String(error)
-      }), 
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
