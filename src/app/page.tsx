@@ -19,15 +19,24 @@ export default function Home() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const router = useRouter();
 
+  const convexUser = useQuery(
+    api.users.getUserByClerkId,
+    user?.id ? { clerkUserId: user.id } : "skip"
+  );
+
   // Redirect to onboarding if user doesn't have first/last name
   React.useEffect(() => {
     if (!userLoaded) return;
     if (!user) return;
+    if (convexUser === undefined) return;
     const win = typeof window !== 'undefined' ? window : undefined;
     const sp = win ? new URLSearchParams(win.location.search) : undefined;
     const justOnboarded = (sp?.get('justOnboarded') === '1') || (win?.sessionStorage.getItem('justOnboarded') === '1');
 
-    if (!user.firstName || !user.lastName) {
+    const firstName = convexUser?.firstName || user.firstName;
+    const lastName = convexUser?.lastName || user.lastName;
+
+    if (!firstName || !lastName) {
       // Avoid immediate loop right after onboarding
       if (justOnboarded) {
         // Clean up flag and strip query param
@@ -41,12 +50,14 @@ export default function Home() {
       router.push('/onboarding');
     } else {
       // Sync user data to Convex when they have complete profile
-      fetch('/api/profile/sync-to-convex', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(console.error);
+      if (!convexUser?.firstName || !convexUser?.lastName) {
+        fetch('/api/profile/sync-to-convex', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }).catch(console.error);
+      }
     }
-  }, [user?.firstName, user?.lastName, userLoaded, router]);
+  }, [convexUser, user?.firstName, user?.lastName, userLoaded, router]);
 
   const canQueryUserOrgs = userLoaded && !!user?.id && isAuthenticated;
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -167,7 +178,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold tracking-tight mb-4">
-                Welcome back, {user?.firstName || user?.emailAddresses[0]?.emailAddress}!
+                Welcome back, {convexUser?.firstName || user?.firstName || user?.emailAddresses[0]?.emailAddress}!
               </h2>
               <p className="text-lg text-muted-foreground">
                 Choose a project to view its schedule or create a new one.
