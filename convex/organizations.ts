@@ -87,15 +87,15 @@ export const getOrganizationBySlug = query({
 export const getUserOrganizations = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
-    // Require authentication and user can only query their own orgs
+    // Derive userId from identity; if not signed in, return empty to avoid client runtime errors during auth transitions
     const identity = await ctx.auth.getUserIdentity();
-    console.log("Auth identity:", identity?.subject, "Requested userId:", args.userId);
-    if (!identity || identity.subject !== args.userId) throw new Error("Forbidden");
+    if (!identity) return [];
+    const userId = identity.subject;
 
     // Get organizations where user has membership
     const memberships = await ctx.db
       .query("organizationMemberships")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const membershipOrgs = await Promise.all(
@@ -112,7 +112,7 @@ export const getUserOrganizations = query({
     // Also get organizations where user is the creator (but may not have membership record)
     const createdOrgs = await ctx.db
       .query("organizations")
-      .withIndex("by_created_by", (q) => q.eq("createdBy", args.userId))
+      .withIndex("by_created_by", (q) => q.eq("createdBy", userId))
       .collect();
 
     // Combine and deduplicate

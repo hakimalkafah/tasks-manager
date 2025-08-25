@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useOrganization, useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useOrganization, useUser, useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
@@ -12,10 +12,126 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
  
 
+function UserProjectsGrid({ userId }: { userId: string }) {
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { isLoaded: userLoaded } = useUser();
+
+  const [canFetch, setCanFetch] = React.useState(false);
+  React.useEffect(() => {
+    if (authLoaded && userLoaded && isSignedIn && userId) {
+      const t = setTimeout(() => setCanFetch(true), 0);
+      return () => clearTimeout(t);
+    } else {
+      setCanFetch(false);
+    }
+  }, [authLoaded, userLoaded, isSignedIn, userId]);
+
+  const userOrganizations = useQuery(
+    api.organizations.getUserOrganizations,
+    canFetch && userId ? { userId } : "skip"
+  );
+
+  if (!canFetch) return null;
+
+  const hasOrgs = Array.isArray(userOrganizations) && userOrganizations.length > 0;
+
+  return (
+    <>
+      {hasOrgs ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Your Projects</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(userOrganizations as any[]).map((org: any) => (
+              <Card key={org?._id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <Link href={`/project/${org?.slug}`}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      {org?.imageUrl ? (
+                        <img src={org.imageUrl} alt={org.name} className="w-8 h-8 rounded" />
+                      ) : (
+                        <Building2 className="h-8 w-8 text-blue-500" />
+                      )}
+                      {org?.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="capitalize">{org?.role}</span>
+                      <span>
+                        Joined {new Date(org?.joinedAt || 0).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Link>
+              </Card>
+            ))}
+
+            {/* Add Project tile */}
+            <Card className="flex items-center justify-center hover:shadow-md transition-shadow">
+              <CardContent className="w-full h-full flex flex-col items-center justify-center py-10 gap-4 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Building2 className="h-10 w-10 text-gray-400" />
+                  <div className="text-lg font-semibold">Add Project</div>
+                  <div className="text-sm text-muted-foreground">Create a new project (organization)</div>
+                </div>
+                <div>
+                  <OrganizationSwitcherComponent />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle className="text-center">
+              {userOrganizations === undefined ? "Loading Projects..." : "No Projects Yet"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            {userOrganizations === undefined ? (
+              <p className="text-muted-foreground mb-6">
+                Loading your projects...
+              </p>
+            ) : (
+              <>
+                <p className="text-muted-foreground mb-6">
+                  Create your first project to start scheduling events with your team.
+                </p>
+                <OrganizationSwitcherComponent />
+              </>
+            )}
+            <div className="mt-4 text-xs text-gray-500">
+              Debug: userOrganizations = {JSON.stringify(userOrganizations)}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </>
+  );
+}
+
 export default function Home() {
   const { organization, isLoaded: orgLoaded } = useOrganization();
   const { user, isLoaded: userLoaded } = useUser();
   const router = useRouter();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+
+  // Defer fetching orgs until auth + user are fully ready to avoid Convex Forbidden during race conditions
+  const [canFetchOrgs, setCanFetchOrgs] = React.useState(false);
+  React.useEffect(() => {
+    if (authLoaded && userLoaded && isSignedIn && user?.id) {
+      // Defer one tick to ensure Convex receives identity from Clerk
+      const t = setTimeout(() => setCanFetchOrgs(true), 0);
+      return () => clearTimeout(t);
+    } else {
+      setCanFetchOrgs(false);
+    }
+  }, [authLoaded, userLoaded, isSignedIn, user?.id]);
 
   // Redirect to onboarding if user doesn't have first/last name
   React.useEffect(() => {
@@ -30,35 +146,11 @@ export default function Home() {
     }
   }, [user, userLoaded, router]);
 
-  const userOrganizations = useQuery(
-    api.organizations.getUserOrganizations,
-    user && user.id ? { userId: user.id } : "skip"
-  );
-
-  // Use the authenticated user's actual ID from Clerk
-  const actualUserOrganizations = useQuery(
-    api.organizations.getUserOrganizations,
-    user && user.id ? { userId: user.id } : "skip"
-  );
-
-  // Debug logging
+  // Debug logging (kept minimal)
   React.useEffect(() => {
     console.log("Debug - user:", user?.id);
-    console.log("Debug - user object:", user);
-    console.log("Debug - userLoaded:", userLoaded);
-    console.log("Debug - query condition (user && user.id):", user && user.id);
-    console.log("Debug - userOrganizations:", userOrganizations);
-    console.log("Debug - actualUserOrganizations:", actualUserOrganizations);
-    console.log("Debug - userOrganizations type:", typeof userOrganizations);
-    console.log("Debug - userOrganizations === undefined:", userOrganizations === undefined);
-    console.log("Debug - userOrganizations === null:", userOrganizations === null);
-    if (userOrganizations) {
-      console.log("Debug - userOrganizations.length:", userOrganizations.length);
-    }
-    if (actualUserOrganizations) {
-      console.log("Debug - actualUserOrganizations.length:", actualUserOrganizations.length);
-    }
-  }, [user, userLoaded, userOrganizations, actualUserOrganizations]);
+    console.log("Debug - authLoaded/userLoaded/isSignedIn:", authLoaded, userLoaded, isSignedIn);
+  }, [user?.id, authLoaded, userLoaded, isSignedIn]);
 
   // Check if organization exists in Convex before redirecting
   const convexOrg = useQuery(
@@ -152,68 +244,7 @@ export default function Home() {
               
             </div>
 
-            {(userOrganizations && Array.isArray(userOrganizations) && userOrganizations.length > 0) || 
-             (actualUserOrganizations && Array.isArray(actualUserOrganizations) && actualUserOrganizations.length > 0) ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-semibold">Your Projects</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(userOrganizations || actualUserOrganizations || []).map((org) => (
-                    <Card key={org?._id} className="hover:shadow-md transition-shadow cursor-pointer">
-                      <Link href={`/organization/${org?.slug}`}>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            {org?.imageUrl ? (
-                              <img src={org.imageUrl} alt={org.name} className="w-8 h-8 rounded" />
-                            ) : (
-                              <Building2 className="h-8 w-8 text-blue-500" />
-                            )}
-                            {org?.name}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <span className="capitalize">{org?.role}</span>
-                            <span>
-                              Joined {new Date(org?.joinedAt || 0).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Link>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <Card className="max-w-md mx-auto">
-                <CardHeader>
-                  <CardTitle className="text-center">
-                    {userOrganizations === undefined ? "Loading Projects..." : "No Projects Yet"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  {userOrganizations === undefined ? (
-                    <p className="text-muted-foreground mb-6">
-                      Loading your projects...
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-muted-foreground mb-6">
-                        Create your first project to start scheduling events with your team.
-                      </p>
-                      <OrganizationSwitcherComponent />
-                    </>
-                  )}
-                  <div className="mt-4 text-xs text-gray-500">
-                    Debug: userOrganizations = {JSON.stringify(userOrganizations)}<br/>
-                    Debug: actualUserOrganizations = {JSON.stringify(actualUserOrganizations)}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <UserProjectsGrid userId={user?.id as string} />
           </div>
         </SignedIn>
       </main>

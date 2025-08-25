@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -71,13 +71,19 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     endDate: "",
     endTime: "",
     assignedTo: "",
-    status: "scheduled" as "scheduled" | "in_progress" | "completed" | "cancelled",
   });
 
   const events = useQuery(
     api.events.getOrganizationEvents,
     { organizationId: organizationId as any }
   );
+
+  // Persisted user colors for this organization
+  const storedColors = useQuery(
+    api.userColors.getOrgUserColors,
+    { organizationId: organizationId as any }
+  );
+  const upsertUserColor = useMutation(api.userColors.upsertUserColor);
 
   const createEvent = useMutation(api.events.createEvent);
   const updateEvent = useMutation(api.events.updateEvent);
@@ -185,7 +191,6 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       endDate: moment(event.endTime).format('YYYY-MM-DD'),
       endTime: moment(event.endTime).format('HH:mm'),
       assignedTo: event.assignedTo,
-      status: event.status,
     });
     setSelectedEvent(null);
   };
@@ -205,7 +210,6 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
         startTime: startDateTime.getTime(),
         endTime: endDateTime.getTime(),
         assignedTo: editEvent.assignedTo,
-        status: editEvent.status,
       });
 
       setEditingEvent(null);
@@ -248,14 +252,75 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     return `User ${userId.slice(-4)}`;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800';
-      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Shared palette for defaults
+  const palette = useMemo(
+    () => [
+      '#3b82f6', // blue
+      '#10b981', // green
+      '#f59e0b', // amber
+      '#ef4444', // red
+      '#8b5cf6', // violet
+      '#14b8a6', // teal
+      '#f97316', // orange
+      '#22c55e', // emerald
+    ],
+    []
+  );
+
+  // Build a map of userId -> color from stored colors
+  const colorsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (storedColors) {
+      for (const row of storedColors as Array<{ userId: string; color: string }>) {
+        map.set(row.userId, row.color);
+      }
     }
+    return map;
+  }, [storedColors]);
+
+  // Initialize missing colors by assigning defaults and persisting them
+  useEffect(() => {
+    if (!organizationMembers?.length) return;
+    if (storedColors === undefined) return; // still loading
+
+    const used = new Set<string>(Array.from(colorsMap.values()));
+    const pickColor = (startIdx: number) => {
+      for (let i = 0; i < palette.length; i++) {
+        const color = palette[(startIdx + i) % palette.length];
+        if (!used.has(color)) return color;
+      }
+      // fallback cycles
+      return palette[startIdx % palette.length];
+    };
+
+    const missing = organizationMembers.filter(m => !colorsMap.has(m.userId));
+    if (missing.length === 0) return;
+
+    (async () => {
+      const promises: Promise<any>[] = [];
+      for (let i = 0; i < missing.length; i++) {
+        const member = missing[i];
+        const idx = Math.max(0, organizationMembers.findIndex(mm => mm.userId === member.userId));
+        const color = pickColor(idx);
+        used.add(color);
+        promises.push(
+          upsertUserColor({
+            organizationId: organizationId as any,
+            userId: member.userId,
+            color,
+          })
+        );
+      }
+      try { await Promise.all(promises); } catch (e) { console.error("Failed to upsert user colors", e); }
+    })();
+  }, [organizationMembers, storedColors, colorsMap, palette, organizationId, upsertUserColor]);
+
+  // Get color for a user (from stored map; fallback to palette by index)
+  const getUserColor = (userId: string) => {
+    const stored = colorsMap.get(userId);
+    if (stored) return stored;
+    const idx = Math.max(0, organizationMembers.findIndex(m => m.userId === userId));
+    return palette[idx % palette.length];
   };
 
 
@@ -443,9 +508,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               showMultiDayTimes
               eventPropGetter={(event) => ({
                 style: {
-                  backgroundColor: event.resource.status === 'completed' ? '#10b981' : 
-                                 event.resource.status === 'in_progress' ? '#f59e0b' :
-                                 event.resource.status === 'cancelled' ? '#ef4444' : '#3b82f6',
+                  backgroundColor: getUserColor((event.resource as CalendarEvent).assignedTo),
                 },
               })}
               components={{
@@ -528,10 +591,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               </div>
 
               <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className={getStatusColor(selectedEvent.status)}>
-                  {selectedEvent.status.replace('_', ' ')}
-                </Badge>
+                {/* Status removed from UI */}
               </div>
 
               {canEditEvent(selectedEvent) && (
@@ -646,25 +706,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 </Select>
               </div>
 
-              <div>
-                <label className="text-sm font-medium">Status</label>
-                <Select 
-                  value={editEvent.status} 
-                  onValueChange={(value: "scheduled" | "in_progress" | "completed" | "cancelled") => 
-                    setEditEvent(prev => ({ ...prev, status: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Status editing removed */}
 
               <div className="flex gap-2 pt-4">
                 <Button type="submit" className="flex-1">Update Event</Button>

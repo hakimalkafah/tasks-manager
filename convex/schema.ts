@@ -17,6 +17,18 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_user_and_organization", ["userId", "organizationId"]),
 
+  // Per-organization user color preferences for calendar/event coloring
+  userColors: defineTable({
+    organizationId: v.id("organizations"),
+    userId: v.string(), // Clerk user ID
+    color: v.string(), // Hex color string
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["organizationId"])
+    .index("by_user", ["userId"])
+    .index("by_org_user", ["organizationId", "userId"]),
+
   events: defineTable({
     title: v.string(),
     description: v.optional(v.string()),

@@ -16,6 +16,7 @@ import type {
 import type * as events from "../events.js";
 import type * as organizations from "../organizations.js";
 import type * as tasks from "../tasks.js";
+import type * as userColors from "../userColors.js";
 import type * as users from "../users.js";
 
 /**
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   events: typeof events;
   organizations: typeof organizations;
   tasks: typeof tasks;
+  userColors: typeof userColors;
   users: typeof users;
 }>;
 export declare const api: FilterApi<
