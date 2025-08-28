@@ -3,6 +3,7 @@
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
+import { Id } from "../../../../../convex/_generated/dataModel";
 import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +22,14 @@ export default function OrganizationTasksPage() {
     dueDate: "",
   });
 
+  const organizationData = useQuery(
+    api.organizations.getOrganizationBySlug,
+    organization ? { slug: organization.slug! } : "skip"
+  );
+
   const organizationTasks = useQuery(
     api.tasks.getOrganizationTasks,
-    organization ? { organizationId: organization.id } : "skip"
+    organizationData ? { organizationId: organizationData._id } : "skip"
   );
 
   const createTask = useMutation(api.tasks.createTask);
@@ -31,7 +37,7 @@ export default function OrganizationTasksPage() {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!organization || !user || !newTask.title.trim()) return;
+    if (!organization || !user || !newTask.title.trim() || !organizationData) return;
 
     try {
       await createTask({
@@ -40,7 +46,7 @@ export default function OrganizationTasksPage() {
         priority: newTask.priority,
         dueDate: newTask.dueDate ? new Date(newTask.dueDate).getTime() : undefined,
         userId: user.id,
-        organizationId: organization.id,
+        organizationId: organizationData._id,
       });
 
       setNewTask({ title: "", description: "", priority: "medium", dueDate: "" });
