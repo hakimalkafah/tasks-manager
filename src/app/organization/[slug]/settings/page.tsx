@@ -2,7 +2,7 @@
 
 import { useOrganization } from "@clerk/nextjs";
 import { OrganizationProfileComponent } from "@/components/organization-profile";
-import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
+import { CreateProjectButton } from "@/components/create-project-button";
 
 export default function OrganizationSettingsPage() {
   const { organization, isLoaded } = useOrganization();
@@ -17,7 +17,7 @@ export default function OrganizationSettingsPage() {
         <div className="w-full max-w-md bg-white border rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-2">No Project Selected</h2>
           <p className="text-gray-600 mb-4">Please select or create a project to continue.</p>
-          <OrganizationSwitcherComponent />
+          <CreateProjectButton />
         </div>
       </div>
     );
