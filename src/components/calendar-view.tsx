@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import TimeGrid from "react-big-calendar/lib/TimeGrid";
+import type { TimeGridProps } from "react-big-calendar";
 
 const localizer = momentLocalizer(moment);
 
@@ -34,36 +36,54 @@ function useMediaQuery(query: string) {
 }
 
 // Custom three-day view for react-big-calendar
-const ThreeDay = {
-  range: (date: Date) => {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const days: Date[] = [];
-    for (let i = 0; i < 3; i++) {
-      const current = new Date(start);
-      current.setDate(start.getDate() + i);
-      days.push(current);
-    }
-    return days;
-  },
-  navigate: (date: Date, action: string) => {
-    const newDate = new Date(date);
-    switch (action) {
-      case "PREV":
-        newDate.setDate(newDate.getDate() - 3);
-        return newDate;
-      case "NEXT":
-        newDate.setDate(newDate.getDate() + 3);
-        return newDate;
-      default:
-        return date;
-    }
-  },
-  title: (date: Date) => {
-    const start = moment(date).startOf("day");
-    const end = start.clone().add(2, "day");
-    return `${start.format("MMM DD")}–${end.format("MMM DD")}`;
-  },
+// react-big-calendar expects custom views to be React components with
+// static `range`, `navigate`, and `title` methods. The previous
+// implementation provided an object instead of a component which caused
+// React to attempt to render a plain object, leading to the runtime error
+// "Objects are not valid as a React child" when the three-day view was
+// selected (the default for mobile).
+
+type ThreeDayComponent = React.ComponentType<TimeGridProps> & {
+  range: (date: Date) => Date[];
+  navigate: (date: Date, action: string) => Date;
+  title: (date: Date) => string;
+};
+
+const ThreeDay: ThreeDayComponent = (props) => {
+  const range = ThreeDay.range(props.date);
+  return <TimeGrid {...props} range={range} eventOffset={15} />;
+};
+
+ThreeDay.range = (date: Date) => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const days: Date[] = [];
+  for (let i = 0; i < 3; i++) {
+    const current = new Date(start);
+    current.setDate(start.getDate() + i);
+    days.push(current);
+  }
+  return days;
+};
+
+ThreeDay.navigate = (date: Date, action: string) => {
+  const newDate = new Date(date);
+  switch (action) {
+    case "PREV":
+      newDate.setDate(newDate.getDate() - 3);
+      return newDate;
+    case "NEXT":
+      newDate.setDate(newDate.getDate() + 3);
+      return newDate;
+    default:
+      return date;
+  }
+};
+
+ThreeDay.title = (date: Date) => {
+  const start = moment(date).startOf("day");
+  const end = start.clone().add(2, "day");
+  return `${start.format("MMM DD")}–${end.format("MMM DD")}`;
 };
 
 const views = {
