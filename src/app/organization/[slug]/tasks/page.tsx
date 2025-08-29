@@ -20,7 +20,7 @@ export default function OrganizationTasksPage() {
     description: "",
     priority: "medium" as "low" | "medium" | "high",
     dueDate: "",
-  });
+  }); 
 
   const organizationTasks = useQuery(
     api.tasks.getOrganizationTasks,
