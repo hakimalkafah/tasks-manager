@@ -15,8 +15,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const localizer = momentLocalizer(moment);
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const listener = () => setMatches(media.matches);
+    listener();
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [query]);
+
+  return matches;
+}
 
 interface CalendarEvent {
   _id: string;
@@ -49,6 +64,7 @@ interface CalendarViewProps {
 
 export function CalendarView({ organizationId, organizationMembers }: CalendarViewProps) {
   const { user } = useUser();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [view, setView] = useState<View>(Views.WEEK);
   const [date, setDate] = useState(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -328,9 +344,9 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     ? organizationMembers 
     : organizationMembers.filter(m => m.userId === user?.id);
 
-  return (
-    <div className="space-y-6">
-      {/* Conflicts Summary Tile */}
+    return (
+      <div className={cn("space-y-6", isMobile ? "text-xs" : "text-sm")}>
+        {/* Conflicts Summary Tile */}
       <Card className={conflicts.length ? "border-red-300" : undefined}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -373,10 +389,10 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       </Card>
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <CalendarIcon className="h-8 w-8 text-blue-500" />
+        <div className={cn("flex items-center", isMobile ? "gap-2" : "gap-4")}>
+          <CalendarIcon className={cn("text-blue-500", isMobile ? "h-6 w-6" : "h-8 w-8")} />
           <div>
-            <h2 className="text-2xl font-bold">Project Schedule</h2>
+            <h2 className={cn("font-bold", isMobile ? "text-xl" : "text-2xl")}>Project Schedule</h2>
             <p className="text-muted-foreground">
               {currentUserRole === "admin" ? "Manage team schedules and assignments" : "View your assigned events"}
             </p>
@@ -488,7 +504,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className={cn(isMobile ? "p-2" : "p-6")}>
           <div style={{ height: '600px' }}>
             <Calendar
               localizer={localizer}
@@ -513,8 +529,13 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               })}
               components={{
                 toolbar: (props) => (
-                  <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg border">
-                    <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between mb-4 bg-white rounded-lg border",
+                      isMobile ? "p-2 text-xs" : "p-4"
+                    )}
+                  >
+                    <div className={cn("flex items-center", isMobile ? "gap-1" : "gap-2")}>
                       <Button
                         variant="outline"
                         size="sm"
@@ -537,12 +558,12 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
-                    
-                    <h2 className="text-lg font-semibold">
+
+                    <h2 className={cn("font-semibold", isMobile ? "text-base" : "text-lg")}>
                       {props.label}
                     </h2>
-                    
-                    <div className="flex gap-1">
+
+                    <div className={cn("flex", isMobile ? "gap-0.5" : "gap-1")}>
                       {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
                         <Button
                           key={viewName}
