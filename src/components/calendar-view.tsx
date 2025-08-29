@@ -43,13 +43,20 @@ function useMediaQuery(query: string) {
 // "Objects are not valid as a React child" when the three-day view was
 // selected (the default for mobile).
 
-type ThreeDayComponent = React.ComponentType<TimeGridProps> & {
+// `TimeGrid` expects a `date` prop, but the type definitions for
+// `TimeGridProps` in `@types/react-big-calendar` omit it. We extend the props
+// here to include the missing `date` field so that TypeScript understands it.
+interface ThreeDayProps extends TimeGridProps {
+  date: Date;
+}
+
+type ThreeDayComponent = React.ComponentType<ThreeDayProps> & {
   range: (date: Date) => Date[];
   navigate: (date: Date, action: string) => Date;
   title: (date: Date) => string;
 };
 
-const ThreeDay: ThreeDayComponent = (props) => {
+const ThreeDay: ThreeDayComponent = (props: ThreeDayProps) => {
   const range = ThreeDay.range(props.date);
   return <TimeGrid {...props} range={range} eventOffset={15} />;
 };
