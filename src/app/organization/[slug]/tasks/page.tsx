@@ -106,7 +106,7 @@ export default function OrganizationTasksPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Create Tasks Form */}
+        {/* Create Task Form */}
         {showCreateForm && (
           <Card className="mb-6">
             <CardHeader>
