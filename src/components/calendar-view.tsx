@@ -633,7 +633,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                             key={viewName}
                             variant={props.view === viewName ? "default" : "outline"}
                             size="sm"
-                            onClick={() => props.onView(viewName)}
+                            onClick={() => props.onView(viewName as unknown as View)}
                           >
                             {viewName === 'threeDay'
                               ? '3 Day'
