@@ -385,7 +385,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
         
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="hidden sm:inline-flex">
               <Plus className="h-4 w-4 mr-2" />
               New Event
             </Button>
@@ -486,6 +486,14 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
           </DialogContent>
         </Dialog>
       </div>
+
+      <Button
+        onClick={() => setShowCreateDialog(true)}
+        className="fixed bottom-6 right-6 rounded-full h-12 w-12 p-0 sm:hidden"
+      >
+        <Plus className="h-6 w-6" />
+        <span className="sr-only">New Event</span>
+      </Button>
 
       <Card>
         <CardContent className="p-6">
