@@ -18,6 +18,61 @@ import { Badge } from "@/components/ui/badge";
 
 const localizer = momentLocalizer(moment);
 
+// Simple hook to track media query matches
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const listener = () => setMatches(media.matches);
+    listener();
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [query]);
+
+  return matches;
+}
+
+// Custom three-day view for react-big-calendar
+const ThreeDay = {
+  range: (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const days: Date[] = [];
+    for (let i = 0; i < 3; i++) {
+      const current = new Date(start);
+      current.setDate(start.getDate() + i);
+      days.push(current);
+    }
+    return days;
+  },
+  navigate: (date: Date, action: string) => {
+    const newDate = new Date(date);
+    switch (action) {
+      case "PREV":
+        newDate.setDate(newDate.getDate() - 3);
+        return newDate;
+      case "NEXT":
+        newDate.setDate(newDate.getDate() + 3);
+        return newDate;
+      default:
+        return date;
+    }
+  },
+  title: (date: Date) => {
+    const start = moment(date).startOf("day");
+    const end = start.clone().add(2, "day");
+    return `${start.format("MMM DD")}–${end.format("MMM DD")}`;
+  },
+};
+
+const views = {
+  threeDay: ThreeDay,
+  month: Views.MONTH,
+  week: Views.WEEK,
+  day: Views.DAY,
+};
+
 interface CalendarEvent {
   _id: string;
   title: string;
@@ -49,7 +104,8 @@ interface CalendarViewProps {
 
 export function CalendarView({ organizationId, organizationMembers }: CalendarViewProps) {
   const { user } = useUser();
-  const [view, setView] = useState<View>(Views.WEEK);
+  const isMobile = useMediaQuery('(max-width:768px)');
+  const [view, setView] = useState<'threeDay' | View>(isMobile ? 'threeDay' : Views.WEEK);
   const [date, setDate] = useState(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -72,6 +128,10 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     endTime: "",
     assignedTo: "",
   });
+
+  useEffect(() => {
+    setView(isMobile ? 'threeDay' : Views.WEEK);
+  }, [isMobile]);
 
   const events = useQuery(
     api.events.getOrganizationEvents,
@@ -503,7 +563,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               onSelectSlot={handleSelectSlot}
               selectable
               popup
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
+              views={views}
               step={30}
               showMultiDayTimes
               eventPropGetter={(event) => ({
@@ -543,14 +603,19 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                     </h2>
                     
                     <div className="flex gap-1">
-                      {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
+                      {(isMobile
+                        ? [Views.MONTH, 'threeDay', Views.DAY]
+                        : [Views.MONTH, Views.WEEK, 'threeDay', Views.DAY]
+                      ).map((viewName) => (
                         <Button
                           key={viewName}
                           variant={props.view === viewName ? "default" : "outline"}
                           size="sm"
                           onClick={() => props.onView(viewName)}
                         >
-                          {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                          {viewName === 'threeDay'
+                            ? '3 Day'
+                            : viewName.charAt(0).toUpperCase() + viewName.slice(1)}
                         </Button>
                       ))}
                     </div>
