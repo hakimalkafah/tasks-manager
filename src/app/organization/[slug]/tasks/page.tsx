@@ -4,7 +4,7 @@ import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
-import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
+import { CreateProjectButton } from "@/components/create-project-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +79,7 @@ export default function OrganizationTasksPage() {
             <p className="text-gray-600 mb-4">
               Please select or create an organization to continue.
             </p>
-            <OrganizationSwitcherComponent />
+            <CreateProjectButton />
           </CardContent>
         </Card>
       </div>
@@ -95,7 +95,7 @@ export default function OrganizationTasksPage() {
               <h1 className="text-2xl font-bold text-gray-900">
                 {organization.name} - Tasks
               </h1>
-              <OrganizationSwitcherComponent />
+              <CreateProjectButton />
             </div>
             <Button onClick={() => setShowCreateForm(true)}>
               <Plus className="h-4 w-4 mr-2" />

@@ -4,10 +4,10 @@ import React from 'react';
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton, useOrganization, useUser, useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
+import { CreateProjectButton } from "@/components/create-project-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Settings, Plus, Building2 } from "lucide-react";
+import { Calendar, Users, Plus, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
  
@@ -78,7 +78,7 @@ function UserProjectsGrid({ userId }: { userId: string }) {
                   <div className="text-sm text-muted-foreground">Create a new project (organization)</div>
                 </div>
                 <div>
-                  <OrganizationSwitcherComponent />
+                  <CreateProjectButton />
                 </div>
               </CardContent>
             </Card>
@@ -102,7 +102,7 @@ function UserProjectsGrid({ userId }: { userId: string }) {
                 <p className="text-muted-foreground mb-6">
                   Create your first project to start scheduling events with your team.
                 </p>
-                <OrganizationSwitcherComponent />
+                <CreateProjectButton />
               </>
             )}
             <div className="mt-4 text-xs text-gray-500">

@@ -4,11 +4,11 @@ import React from 'react';
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
+import { CreateProjectButton } from "@/components/create-project-button";
 import { CalendarView } from "@/components/calendar-view";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Calendar, ArrowLeft } from "lucide-react";
+import { Settings, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
  
@@ -61,7 +61,7 @@ export default function OrganizationPage() {
                   Back to Home
                 </Button>
               </Link>
-              <OrganizationSwitcherComponent />
+              <CreateProjectButton />
             </div>
           </CardContent>
         </Card>
@@ -76,7 +76,7 @@ export default function OrganizationPage() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-gray-900">{convexOrg.name}</h1>
-              <OrganizationSwitcherComponent currentOrganization={convexOrg} />
+              <CreateProjectButton />
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/project/${convexOrg.slug}/settings`}>

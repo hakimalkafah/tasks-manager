@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
+import { CreateProjectButton } from "@/components/create-project-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-gray-900">
                 Personal Dashboard
               </h1>
-              <OrganizationSwitcherComponent />
+              <CreateProjectButton />
             </div>
             <Button onClick={() => setShowCreateForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
