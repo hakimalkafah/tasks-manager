@@ -17,7 +17,6 @@ describe('Home page', () => {
         useUser: () => ({ user: null, isLoaded: true }),
         useOrganization: () => ({ organization: null, isLoaded: true }),
         useAuth: () => ({ isLoaded: true, isSignedIn: false }),
-        useClerk: () => ({ openCreateOrganization: vi.fn() }),
         SignedIn: ({ children }: any) => null,
         SignedOut: ({ children }: any) => <>{children}</>,
         // Avoid nested <button> in tests
@@ -46,7 +45,6 @@ describe('Home page', () => {
         useUser: () => ({ user: { id: 'user_1', firstName: 'Jane', emailAddresses: [{ emailAddress: 'jane@example.com' }] }, isLoaded: true }),
         useOrganization: () => ({ organization: null, isLoaded: true }),
         useAuth: () => ({ isLoaded: true, isSignedIn: true }),
-        useClerk: () => ({ openCreateOrganization: vi.fn() }),
         SignedIn: ({ children }: any) => <>{children}</>,
         SignedOut: ({ children }: any) => null,
         // Avoid nested <button> in tests

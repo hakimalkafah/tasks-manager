@@ -25,6 +25,13 @@ vi.mock('@clerk/nextjs', async () => {
   };
 });
 
+// Simplify CreateProjectButton to avoid relying on Clerk's client in tests
+vi.mock('@/components/create-project-button', () => {
+  return {
+    CreateProjectButton: () => React.createElement('button', null, 'Create Project'),
+  };
+});
+
 // Mock Convex hooks used in the app
 vi.mock('convex/react', () => {
   return {
