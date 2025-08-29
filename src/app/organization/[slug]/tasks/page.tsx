@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, CheckSquare, Clock, User } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function OrganizationTasksPage() {
   const { organization, isLoaded } = useOrganization();
@@ -79,7 +80,12 @@ export default function OrganizationTasksPage() {
             <p className="text-gray-600 mb-4">
               Please select or create an organization to continue.
             </p>
-            <CreateProjectButton />
+            <div className="flex items-center gap-2">
+              <CreateProjectButton />
+              <Link href="/">
+                <Button variant="outline">Back to Projects</Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
