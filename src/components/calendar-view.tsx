@@ -68,9 +68,9 @@ const ThreeDay = {
 
 const views = {
   threeDay: ThreeDay,
-  month: Views.MONTH,
-  week: Views.WEEK,
-  day: Views.DAY,
+  month: true,
+  week: true,
+  day: true,
 };
 
 interface CalendarEvent {
@@ -556,15 +556,15 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              view={view}
-              onView={setView}
+              view={view as View}
+              onView={(newView) => setView(newView as typeof view)}
               date={date}
               onNavigate={setDate}
               onSelectEvent={handleSelectEvent}
               onSelectSlot={handleSelectSlot}
               selectable
               popup
-              views={views}
+              views={views as any}
               step={30}
               showMultiDayTimes
               eventPropGetter={(event) => ({
