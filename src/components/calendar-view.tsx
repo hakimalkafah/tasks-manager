@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -72,6 +72,54 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     endTime: "",
     assignedTo: "",
   });
+
+  const [range, setRange] = useState({
+    start: moment().startOf('week').toDate(),
+    end: moment().endOf('week').toDate(),
+  });
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const numberOfDays = useMemo(() =>
+    moment(range.end).diff(moment(range.start), 'days') + 1,
+  [range]);
+
+  const handleRangeChange = (newRange: any) => {
+    let start: Date;
+    let end: Date;
+    if (Array.isArray(newRange)) {
+      start = newRange[0];
+      end = newRange[newRange.length - 1];
+    } else {
+      start = newRange.start;
+      end = newRange.end;
+    }
+    setRange({ start, end });
+    setDate(start);
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollLeft === 0) {
+      setRange((prev) => ({
+        start: moment(prev.start).subtract(7, 'days').toDate(),
+        end: prev.end,
+      }));
+      el.scrollLeft = 1;
+    } else if (Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth) {
+      setRange((prev) => ({
+        start: prev.start,
+        end: moment(prev.end).add(7, 'days').toDate(),
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dayWidth = 150;
+    const offset = moment(date).diff(moment(range.start), 'days') * dayWidth;
+    el.scrollLeft = offset;
+  }, [date, range]);
 
   const events = useQuery(
     api.events.getOrganizationEvents,
@@ -489,75 +537,82 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
       <Card>
         <CardContent className="p-6">
-          <div style={{ height: '600px' }}>
-            <Calendar
-              localizer={localizer}
-              events={calendarEvents}
-              startAccessor="start"
-              endAccessor="end"
-              view={view}
-              onView={setView}
-              date={date}
-              onNavigate={setDate}
-              onSelectEvent={handleSelectEvent}
-              onSelectSlot={handleSelectSlot}
-              selectable
-              popup
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
-              step={30}
-              showMultiDayTimes
-              eventPropGetter={(event) => ({
-                style: {
-                  backgroundColor: getUserColor((event.resource as CalendarEvent).assignedTo),
-                },
-              })}
-              components={{
-                toolbar: (props) => (
-                  <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg border">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('PREV')}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('TODAY')}
-                      >
-                        Today
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('NEXT')}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <h2 className="text-lg font-semibold">
-                      {props.label}
-                    </h2>
-                    
-                    <div className="flex gap-1">
-                      {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="overflow-x-auto"
+          >
+            <div style={{ width: `${numberOfDays * 150}px`, height: '600px' }}>
+              <Calendar
+                localizer={localizer}
+                events={calendarEvents}
+                startAccessor="start"
+                endAccessor="end"
+                view={view}
+                onView={setView}
+                date={date}
+                onNavigate={setDate}
+                onRangeChange={handleRangeChange}
+                onSelectEvent={handleSelectEvent}
+                onSelectSlot={handleSelectSlot}
+                selectable
+                popup
+                views={[Views.MONTH, Views.WEEK, Views.DAY]}
+                step={30}
+                showMultiDayTimes
+                eventPropGetter={(event) => ({
+                  style: {
+                    backgroundColor: getUserColor((event.resource as CalendarEvent).assignedTo),
+                  },
+                })}
+                components={{
+                  toolbar: (props) => (
+                    <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg border">
+                      <div className="flex items-center gap-2">
                         <Button
-                          key={viewName}
-                          variant={props.view === viewName ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => props.onView(viewName)}
+                          onClick={() => props.onNavigate('PREV')}
                         >
-                          {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                          <ChevronLeft className="h-4 w-4" />
                         </Button>
-                      ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => props.onNavigate('TODAY')}
+                        >
+                          Today
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => props.onNavigate('NEXT')}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <h2 className="text-lg font-semibold">
+                        {props.label}
+                      </h2>
+
+                      <div className="flex gap-1">
+                        {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
+                          <Button
+                            key={viewName}
+                            variant={props.view === viewName ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => props.onView(viewName)}
+                          >
+                            {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ),
-              }}
-            />
+                  ),
+                }}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
