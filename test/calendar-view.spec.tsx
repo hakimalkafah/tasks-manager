@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+
 // Mock CSS for react-big-calendar to avoid import issues
 vi.mock('react-big-calendar/lib/css/react-big-calendar.css', () => ({}), { virtual: true });
 
@@ -54,7 +55,7 @@ describe('Calendar threeDay view', () => {
       call++;
       return call % 2 === 1 ? [timedEvent] : [];
     });
-
+  
     vi.doMock('convex/react', () => ({
       useQuery: useQueryMock,
       useMutation: () => vi.fn(),
