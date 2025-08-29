@@ -548,8 +548,8 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       </div>
 
       <Card>
-        <CardContent className="p-6">
-          <div style={{ height: '600px' }}>
+        <CardContent className="p-2 sm:p-6">
+          <div className="h-[70vh] sm:h-[600px]">
             <Calendar
               localizer={localizer}
               events={calendarEvents}
