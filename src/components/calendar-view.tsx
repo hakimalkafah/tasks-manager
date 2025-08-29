@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, Clock, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const localizer = momentLocalizer(moment);
@@ -49,7 +49,7 @@ interface CalendarViewProps {
 
 export function CalendarView({ organizationId, organizationMembers }: CalendarViewProps) {
   const { user } = useUser();
-  const [view, setView] = useState<View>(Views.WEEK);
+  const [view, setView] = useState<View>(Views.MONTH);
   const [date, setDate] = useState(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -72,6 +72,8 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     endTime: "",
     assignedTo: "",
   });
+
+  const touchStartX = useRef<number | null>(null);
 
   const events = useQuery(
     api.events.getOrganizationEvents,
@@ -323,6 +325,25 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     return palette[idx % palette.length];
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const threshold = 50;
+    if (Math.abs(deltaX) > threshold) {
+      const amount = view === Views.MONTH ? 1 : 3;
+      const unit = view === Views.MONTH ? 'month' : 'day';
+      const newDate = moment(date)
+        .add(deltaX < 0 ? amount : -amount, unit)
+        .toDate();
+      setDate(newDate);
+    }
+    touchStartX.current = null;
+  };
+
 
   const availableAssignees = currentUserRole === "admin" 
     ? organizationMembers 
@@ -489,7 +510,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
       <Card>
         <CardContent className="p-6">
-          <div style={{ height: '600px' }}>
+          <div style={{ height: '600px' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <Calendar
               localizer={localizer}
               events={calendarEvents}
@@ -503,7 +524,8 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               onSelectSlot={handleSelectSlot}
               selectable
               popup
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
+              views={[Views.MONTH, Views.DAY]}
+              length={3}
               step={30}
               showMultiDayTimes
               eventPropGetter={(event) => ({
@@ -514,45 +536,34 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               components={{
                 toolbar: (props) => (
                   <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg border">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('PREV')}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('TODAY')}
-                      >
-                        Today
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => props.onNavigate('NEXT')}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => props.onNavigate('TODAY')}
+                      className="px-6 py-4"
+                    >
+                      Today
+                    </Button>
                     <h2 className="text-lg font-semibold">
                       {props.label}
                     </h2>
-                    
-                    <div className="flex gap-1">
-                      {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
-                        <Button
-                          key={viewName}
-                          variant={props.view === viewName ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => props.onView(viewName)}
-                        >
-                          {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
-                        </Button>
-                      ))}
+                    <div className="flex gap-4">
+                      <Button
+                        variant={props.view === Views.MONTH ? "default" : "outline"}
+                        size="lg"
+                        onClick={() => props.onView(Views.MONTH)}
+                        className="px-6 py-4"
+                      >
+                        Month
+                      </Button>
+                      <Button
+                        variant={props.view === Views.DAY ? "default" : "outline"}
+                        size="lg"
+                        onClick={() => props.onView(Views.DAY)}
+                        className="px-6 py-4"
+                      >
+                        3-Day
+                      </Button>
                     </div>
                   </div>
                 ),
