@@ -105,6 +105,7 @@ interface CalendarViewProps {
 export function CalendarView({ organizationId, organizationMembers }: CalendarViewProps) {
   const { user } = useUser();
   const isMobile = useMediaQuery('(max-width:768px)');
+  const isVeryNarrow = useMediaQuery('(max-width:400px)');
   const [view, setView] = useState<'threeDay' | View>(isMobile ? 'threeDay' : Views.WEEK);
   const [date, setDate] = useState(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -573,7 +574,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               })}
               components={{
                 toolbar: (props) => (
-                  <div className="flex items-center justify-between mb-4 p-4 bg-white rounded-lg border">
+                  <div className="calendar-toolbar flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 p-4 bg-white rounded-lg border">
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -601,23 +602,45 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                     <h2 className="text-lg font-semibold">
                       {props.label}
                     </h2>
-                    
-                    <div className="flex gap-1">
-                      {(isMobile
-                        ? [Views.MONTH, 'threeDay', Views.DAY]
-                        : [Views.MONTH, Views.WEEK, 'threeDay', Views.DAY]
-                      ).map((viewName) => (
-                        <Button
-                          key={viewName}
-                          variant={props.view === viewName ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => props.onView(viewName)}
+                    <div className="flex flex-wrap gap-1">
+                      {isVeryNarrow ? (
+                        <Select
+                          value={props.view.toString()}
+                          onValueChange={(value) => props.onView(value as any)}
                         >
-                          {viewName === 'threeDay'
-                            ? '3 Day'
-                            : viewName.charAt(0).toUpperCase() + viewName.slice(1)}
-                        </Button>
-                      ))}
+                          <SelectTrigger size="sm" className="min-w-[100px]">
+                            <SelectValue placeholder="View" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(isMobile
+                              ? [Views.MONTH, 'threeDay', Views.DAY]
+                              : [Views.MONTH, Views.WEEK, 'threeDay', Views.DAY]
+                            ).map((viewName) => (
+                              <SelectItem key={viewName} value={viewName}>
+                                {viewName === 'threeDay'
+                                  ? '3 Day'
+                                  : viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        (isMobile
+                          ? [Views.MONTH, 'threeDay', Views.DAY]
+                          : [Views.MONTH, Views.WEEK, 'threeDay', Views.DAY]
+                        ).map((viewName) => (
+                          <Button
+                            key={viewName}
+                            variant={props.view === viewName ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => props.onView(viewName)}
+                          >
+                            {viewName === 'threeDay'
+                              ? '3 Day'
+                              : viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                          </Button>
+                        ))
+                      )}
                     </div>
                   </div>
                 ),

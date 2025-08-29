@@ -120,3 +120,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media (max-width: 640px) {
+  .calendar-toolbar {
+    padding: 0.5rem;
+  }
+
+  .calendar-toolbar h2 {
+    font-size: 1rem;
+  }
+
+  .calendar-toolbar button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+  }
+}
