@@ -390,7 +390,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               New Event
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="h-[100vh] sm:h-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Event</DialogTitle>
             </DialogHeader>
@@ -415,7 +415,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Start Date</label>
                   <Input
@@ -436,7 +436,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">End Date</label>
                   <Input
@@ -463,7 +463,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                   value={newEvent.assignedTo} 
                   onValueChange={(value) => setNewEvent(prev => ({ ...prev, assignedTo: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
@@ -476,9 +476,15 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 </Select>
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">Create Event</Button>
-                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
+                <Button type="submit" size="lg" className="w-full">Create Event</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateDialog(false)}
+                  size="lg"
+                  className="w-full"
+                >
                   Cancel
                 </Button>
               </div>
@@ -564,7 +570,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
       {selectedEvent && (
         <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-          <DialogContent>
+          <DialogContent className="h-[100vh] sm:h-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>{selectedEvent.title}</DialogTitle>
             </DialogHeader>
@@ -620,7 +626,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       {/* Edit Event Dialog */}
       {editingEvent && (
         <Dialog open={!!editingEvent} onOpenChange={() => setEditingEvent(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="h-[100vh] sm:h-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Edit Event</DialogTitle>
             </DialogHeader>
@@ -645,7 +651,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Start Date</label>
                   <Input
@@ -666,7 +672,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">End Date</label>
                   <Input
@@ -693,7 +699,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                   value={editEvent.assignedTo} 
                   onValueChange={(value) => setEditEvent(prev => ({ ...prev, assignedTo: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
@@ -708,9 +714,15 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
               {/* Status editing removed */}
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">Update Event</Button>
-                <Button type="button" variant="outline" onClick={() => setEditingEvent(null)}>
+              <div className="flex flex-col sm:flex-row gap-2 pt-4">
+                <Button type="submit" size="lg" className="w-full">Update Event</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingEvent(null)}
+                  size="lg"
+                  className="w-full"
+                >
                   Cancel
                 </Button>
               </div>
