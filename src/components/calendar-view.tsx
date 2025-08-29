@@ -2,21 +2,61 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, momentLocalizer, View, Views } from 'react-big-calendar';
+import TimeGrid from 'react-big-calendar/lib/TimeGrid';
+import type { TimeGridProps } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useQuery, useMutation } from "convex/react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const localizer = momentLocalizer(moment);
+
+type CustomView = View | 'threeDay';
+
+interface ThreeDayComponent extends React.FC<TimeGridProps> {
+  range: (date: Date) => Date[];
+  navigate: (date: Date, action: string) => Date;
+  title: (date: Date) => string;
+}
+
+const ThreeDayView: ThreeDayComponent = (props) => {
+  const range = ThreeDayView.range(props.date);
+  return <TimeGrid {...props} range={range} eventOffset={15} />;
+};
+
+ThreeDayView.range = (date: Date) => {
+  const start = moment(date).startOf('day');
+  const range: Date[] = [];
+  for (let i = 0; i < 3; i++) {
+    range.push(start.clone().add(i, 'days').toDate());
+  }
+  return range;
+};
+
+ThreeDayView.navigate = (date: Date, action: string) => {
+  switch (action) {
+    case 'PREV':
+      return moment(date).subtract(3, 'days').toDate();
+    case 'NEXT':
+      return moment(date).add(3, 'days').toDate();
+    default:
+      return date;
+  }
+};
+
+ThreeDayView.title = (date: Date) => {
+  return `${moment(date).format('MMM DD')} - ${moment(date).add(2, 'days').format('MMM DD')}`;
+};
 
 interface CalendarEvent {
   _id: string;
@@ -35,7 +75,7 @@ interface CalendarEvent {
 interface CalendarViewProps {
   organizationId: string;
   organizationMembers: Array<{
-    _id: any;
+    _id: string;
     userId: string;
     role: "admin" | "member";
     joinedAt: number;
@@ -49,7 +89,8 @@ interface CalendarViewProps {
 
 export function CalendarView({ organizationId, organizationMembers }: CalendarViewProps) {
   const { user } = useUser();
-  const [view, setView] = useState<View>(Views.WEEK);
+  const defaultView: CustomView = typeof window !== 'undefined' && window.innerWidth < 768 ? 'threeDay' : Views.MONTH;
+  const [view, setView] = useState<CustomView>(defaultView);
   const [date, setDate] = useState(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -75,13 +116,13 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
   const events = useQuery(
     api.events.getOrganizationEvents,
-    { organizationId: organizationId as any }
+    { organizationId: organizationId as Id<'organizations'> }
   );
 
   // Persisted user colors for this organization
   const storedColors = useQuery(
     api.userColors.getOrgUserColors,
-    { organizationId: organizationId as any }
+    { organizationId: organizationId as Id<'organizations'> }
   );
   const upsertUserColor = useMutation(api.userColors.upsertUserColor);
 
@@ -148,7 +189,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
         endTime: endDateTime.getTime(),
         assignedTo: newEvent.assignedTo,
         createdBy: user.id,
-        organizationId: organizationId as any,
+        organizationId: organizationId as Id<'organizations'>,
       });
 
       setNewEvent({
@@ -166,8 +207,8 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     }
   };
 
-  const handleSelectEvent = (event: any) => {
-    const calendarEvent = event.resource as CalendarEvent;
+  const handleSelectEvent = (event: { resource: CalendarEvent }) => {
+    const calendarEvent = event.resource;
     setSelectedEvent(calendarEvent);
   };
 
@@ -204,7 +245,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
       const endDateTime = new Date(`${editEvent.endDate}T${editEvent.endTime}`);
 
       await updateEvent({
-        id: editingEvent._id as any,
+        id: editingEvent._id as Id<'events'>,
         title: editEvent.title,
         description: editEvent.description || undefined,
         startTime: startDateTime.getTime(),
@@ -220,7 +261,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
 
   const handleDeleteEvent = async (eventId: string) => {
     try {
-      await deleteEvent({ id: eventId as any });
+      await deleteEvent({ id: eventId as Id<'events'> });
       setSelectedEvent(null);
       setEditingEvent(null);
     } catch (error) {
@@ -296,8 +337,8 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
     const missing = organizationMembers.filter(m => !colorsMap.has(m.userId));
     if (missing.length === 0) return;
 
-    (async () => {
-      const promises: Promise<any>[] = [];
+      (async () => {
+        const promises: Promise<unknown>[] = [];
       for (let i = 0; i < missing.length; i++) {
         const member = missing[i];
         const idx = Math.max(0, organizationMembers.findIndex(mm => mm.userId === member.userId));
@@ -305,7 +346,7 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
         used.add(color);
         promises.push(
           upsertUserColor({
-            organizationId: organizationId as any,
+            organizationId: organizationId as Id<'organizations'>,
             userId: member.userId,
             color,
           })
@@ -495,15 +536,15 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              view={view}
-              onView={setView}
+              view={view as View}
+              onView={(newView) => setView(newView as CustomView)}
               date={date}
               onNavigate={setDate}
               onSelectEvent={handleSelectEvent}
               onSelectSlot={handleSelectSlot}
               selectable
               popup
-              views={[Views.MONTH, Views.WEEK, Views.DAY]}
+              views={{ month: true, threeDay: ThreeDayView }}
               step={30}
               showMultiDayTimes
               eventPropGetter={(event) => ({
@@ -543,14 +584,14 @@ export function CalendarView({ organizationId, organizationMembers }: CalendarVi
                     </h2>
                     
                     <div className="flex gap-1">
-                      {[Views.MONTH, Views.WEEK, Views.DAY].map((viewName) => (
+                      {['month', 'threeDay'].map((viewName) => (
                         <Button
                           key={viewName}
-                          variant={props.view === viewName ? "default" : "outline"}
+                          variant={(props.view as CustomView) === viewName ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => props.onView(viewName)}
+                          onClick={() => props.onView(viewName as unknown as View)}
                         >
-                          {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+                          {viewName === 'month' ? 'Month' : '3 Days'}
                         </Button>
                       ))}
                     </div>
