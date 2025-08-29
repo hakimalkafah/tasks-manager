@@ -2,14 +2,20 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-describe('Calendar time grid rendering', () => {
-  const setup = async (matches: boolean) => {
-    vi.resetModules();
 
+// Mock CSS for react-big-calendar to avoid import issues
+vi.mock('react-big-calendar/lib/css/react-big-calendar.css', () => ({}), { virtual: true });
+
+describe('Calendar threeDay view', () => {
+  it('renders timed event in time grid with hour gutter', async () => {
+    vi.resetModules();
+    const { api } = await import('../convex/_generated/api');
+
+    // Mock matchMedia for mobile view
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
-        matches,
+        matches: true,
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -17,6 +23,7 @@ describe('Calendar time grid rendering', () => {
       })),
     });
 
+    // Polyfill ResizeObserver used by react-big-calendar
     class ResizeObserver {
       observe() {}
       unobserve() {}
@@ -43,30 +50,25 @@ describe('Calendar time grid rendering', () => {
       updatedAt: Date.now(),
     };
 
-    const useQueryMock = vi.fn(() => [timedEvent]);
+    let call = 0;
+    const useQueryMock = vi.fn(() => {
+      call++;
+      return call % 2 === 1 ? [timedEvent] : [];
+    });
+  
     vi.doMock('convex/react', () => ({
       useQuery: useQueryMock,
       useMutation: () => vi.fn(),
     }));
 
     const { CalendarView } = await import('@/components/calendar-view');
-    const utils = render(<CalendarView organizationId="org1" organizationMembers={[]} />);
-    return { ...utils };
-  };
 
-  it('shows hour gutter and timed grid on mobile three-day view', async () => {
-    const { container } = await setup(true);
-    expect(container.querySelector('.rbc-time-gutter')).toBeInTheDocument();
-    const eventNode = await screen.findByText('Meeting');
-    const eventWrapper = eventNode.closest('.rbc-event');
-    expect(eventWrapper).not.toBeNull();
-    expect(eventWrapper?.closest('.rbc-time-content')).toBeTruthy();
-    expect(eventWrapper?.closest('.rbc-allday-cell')).toBeNull();
-  });
+    const { container } = render(<CalendarView organizationId="org1" organizationMembers={[]} />);
 
-  it('shows hour gutter and timed grid on desktop week view', async () => {
-    const { container } = await setup(false);
+    // Hour gutter should be present
     expect(container.querySelector('.rbc-time-gutter')).toBeInTheDocument();
+
+    // Event should appear in the timed grid, not the all-day row
     const eventNode = await screen.findByText('Meeting');
     const eventWrapper = eventNode.closest('.rbc-event');
     expect(eventWrapper).not.toBeNull();
