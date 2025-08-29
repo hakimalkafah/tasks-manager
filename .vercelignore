@@ -1,0 +1,4 @@
+# Don't ignore the generated Convex types
+!.convex/
+!.convex/**/*
+!convex/_generated/
