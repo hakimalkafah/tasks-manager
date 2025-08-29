@@ -20,7 +20,7 @@ export default function OrganizationTasksPage() {
     description: "",
     priority: "medium" as "low" | "medium" | "high",
     dueDate: "",
-  });
+  }); 
 
   const organizationTasks = useQuery(
     api.tasks.getOrganizationTasks,
@@ -106,7 +106,7 @@ export default function OrganizationTasksPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Create Task Form */}
+        {/* Create Tasks Form */}
         {showCreateForm && (
           <Card className="mb-6">
             <CardHeader>
