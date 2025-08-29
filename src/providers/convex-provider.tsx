@@ -8,12 +8,15 @@ import { useSyncOrganization } from "@/hooks/use-sync-organization";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-export function ConvexClientProvider({ children }: { children: ReactNode }) {
+function SyncOrg({ children }: { children: ReactNode }) {
   useSyncOrganization();
+  return <>{children}</>;
+}
 
+export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      {children}
+      <SyncOrg>{children}</SyncOrg>
     </ConvexProviderWithClerk>
   );
 }
