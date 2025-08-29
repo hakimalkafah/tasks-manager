@@ -120,3 +120,27 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media (max-width: 768px) {
+  .rbc-month-view .rbc-header {
+    padding: 0.25rem 0;
+    font-size: 0.75rem;
+  }
+  .rbc-month-view .rbc-row-content {
+    max-height: 4rem;
+    overflow-y: auto;
+  }
+  .rbc-month-view .rbc-event {
+    padding: 0 2px;
+    font-size: 0.75rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .rbc-month-view .rbc-event:focus,
+  .rbc-month-view .rbc-event:active {
+    white-space: normal;
+    height: auto;
+  }
+}
