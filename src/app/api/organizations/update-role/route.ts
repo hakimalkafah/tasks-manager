@@ -31,7 +31,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Target user is not a member of this organization" }, { status: 404 });
     }
 
-    await client.organizationMemberships.updateOrganizationMembership(target.id, { role });
+    await client.organizations.updateOrganizationMembership({
+      organizationId: clerkOrgId,
+      userId: targetUserId,
+      role: role as 'org:admin' | 'org:member' | 'org:owner'
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

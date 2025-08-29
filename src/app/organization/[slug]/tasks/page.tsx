@@ -2,6 +2,7 @@
 
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
+import { Id } from "@/convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
 import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,9 @@ export default function OrganizationTasksPage() {
 
   const organizationTasks = useQuery(
     api.tasks.getOrganizationTasks,
-    organization ? { organizationId: organization.id } : "skip"
+    organization ? { 
+      organizationId: organization.id as Id<"organizations"> 
+    } : "skip"
   );
 
   const createTask = useMutation(api.tasks.createTask);
@@ -40,7 +43,7 @@ export default function OrganizationTasksPage() {
         priority: newTask.priority,
         dueDate: newTask.dueDate ? new Date(newTask.dueDate).getTime() : undefined,
         userId: user.id,
-        organizationId: organization.id,
+        organizationId: organization.id as Id<"organizations">,
       });
 
       setNewTask({ title: "", description: "", priority: "medium", dueDate: "" });
