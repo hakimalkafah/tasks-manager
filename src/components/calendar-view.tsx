@@ -58,7 +58,11 @@ type ThreeDayComponent = React.ComponentType<ThreeDayProps> & {
 
 const ThreeDay: ThreeDayComponent = (props: ThreeDayProps) => {
   const range = ThreeDay.range(props.date);
-  return <TimeGrid {...props} range={range} eventOffset={15} />;
+  // Use the same `TimeGrid` view that powers the built-in week view so that
+  // the three day view includes the hourly gutter and places events according
+  // to their start and end times instead of rendering them in the all-day
+  // row at the top.
+  return <TimeGrid {...props} range={range} />;
 };
 
 ThreeDay.range = (date: Date) => {
@@ -81,6 +85,12 @@ ThreeDay.navigate = (date: Date, action: string) => {
       return newDate;
     case "NEXT":
       newDate.setDate(newDate.getDate() + 3);
+      return newDate;
+    case "TODAY":
+      return new Date();
+    case "DATE":
+      // When the calendar requests a specific date (e.g. via the toolbar), use
+      // that date as the starting point for the three day range.
       return newDate;
     default:
       return date;
