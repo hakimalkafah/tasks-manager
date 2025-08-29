@@ -52,13 +52,18 @@ export function OrganizationSwitcherComponent({ currentOrganization }: Organizat
     ? currentOrganization.name 
     : undefined;
 
-  return (
-    <div className="flex items-center">
+    return (
       <OrganizationSwitcher
         appearance={{
           elements: {
-            organizationSwitcherTrigger: "px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
-            organizationSwitcherPopoverCard: "mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5",
+            // Use an icon-only trigger to save horizontal space in headers
+            organizationSwitcherTrigger:
+              "flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white p-0 overflow-hidden",
+            organizationSwitcherTriggerIcon: "hidden",
+            organizationSwitcherTriggerText: "hidden",
+            avatarBox: "h-5 w-5",
+            organizationSwitcherPopoverCard:
+              "mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5",
           },
         }}
         createOrganizationMode="modal"
@@ -67,6 +72,5 @@ export function OrganizationSwitcherComponent({ currentOrganization }: Organizat
         afterSelectOrganizationUrl="/project/:slug"
         afterSelectPersonalUrl="/dashboard"
       />
-    </div>
-  );
-}
+    );
+  }
