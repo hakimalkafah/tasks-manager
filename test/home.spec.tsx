@@ -16,14 +16,14 @@ describe('Home page', () => {
         ...actual,
         useUser: () => ({ user: null, isLoaded: true }),
         useOrganization: () => ({ organization: null, isLoaded: true }),
+        useAuth: () => ({ isLoaded: true, isSignedIn: false }),
+        useClerk: () => ({ openCreateOrganization: vi.fn() }),
         SignedIn: ({ children }: any) => null,
         SignedOut: ({ children }: any) => <>{children}</>,
         // Avoid nested <button> in tests
         SignInButton: ({ children }: any) => <>{children}</>,
         SignUpButton: ({ children }: any) => <>{children}</>,
         UserButton: () => <div />,
-        // Stub to avoid ClerkProvider requirement
-        OrganizationSwitcher: () => <div />,
       };
     });
 
@@ -43,16 +43,16 @@ describe('Home page', () => {
       const actual = await vi.importActual<any>('@clerk/nextjs');
       return {
         ...actual,
-        useUser: () => ({ user: { firstName: 'Jane', emailAddresses: [{ emailAddress: 'jane@example.com' }] }, isLoaded: true }),
+        useUser: () => ({ user: { id: 'user_1', firstName: 'Jane', emailAddresses: [{ emailAddress: 'jane@example.com' }] }, isLoaded: true }),
         useOrganization: () => ({ organization: null, isLoaded: true }),
+        useAuth: () => ({ isLoaded: true, isSignedIn: true }),
+        useClerk: () => ({ openCreateOrganization: vi.fn() }),
         SignedIn: ({ children }: any) => <>{children}</>,
         SignedOut: ({ children }: any) => null,
         // Avoid nested <button> in tests
         SignInButton: ({ children }: any) => <>{children}</>,
         SignUpButton: ({ children }: any) => <>{children}</>,
         UserButton: () => <div />,
-        // Stub to avoid ClerkProvider requirement
-        OrganizationSwitcher: () => <div />,
       };
     });
 
@@ -80,7 +80,7 @@ describe('Home page', () => {
     const { default: Home } = await import('@/app/page');
     render(<Home />);
 
-    expect(screen.getByText('Your Projects')).toBeInTheDocument();
+    expect(await screen.findByText('Your Projects')).toBeInTheDocument();
     const cardLink = screen.getByRole('link', { name: /Acme/i });
     expect(cardLink).toHaveAttribute('href', '/project/acme');
   });
