@@ -2,7 +2,7 @@
 
 import { useOrganization, useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
 import { OrganizationSwitcherComponent } from "@/components/organization-switcher";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
